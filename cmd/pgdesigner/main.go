@@ -37,12 +37,16 @@ func main() {
 		case "merge":
 			runMerge(os.Args[2:])
 			return
+		case "testdata":
+			runTestData(os.Args[2:])
+			return
 		}
 	}
 
 	// Server mode flags
 	appMode := flag.Bool("app", false, "open in Chrome/Chromium App Mode (no address bar)")
 	port := flag.Int("port", 0, "fixed port (default: random)")
+	readOnly := flag.Bool("read-only", false, "read-only mode (disables all write operations)")
 	tsClient := flag.Bool("ts_client", false, "generate TypeScript RPC client and exit")
 	schemaFilter := flag.String("schema", "", "schema filter for RE (comma-separated)")
 	fullRE := flag.Bool("full", false, "full introspection (views, functions, triggers)")
@@ -54,6 +58,7 @@ func main() {
   pgdesigner diff <old> <new>        generate ALTER migration SQL
   pgdesigner generate <schema.pgd>   generate DDL SQL
   pgdesigner merge <base> <overlay>  merge two schemas into one .pgd
+  pgdesigner testdata <schema.pgd>  generate test data INSERT SQL
 
 Flags:
 `)
@@ -72,25 +77,41 @@ Flags:
 		return
 	}
 
+	var st *store.ProjectStore
+	var inputPath string
+
 	if flag.NArg() < 1 {
-		flag.Usage()
-		os.Exit(1)
+		// Demo mode: start with embedded chinook schema
+		st = store.NewProjectStore(&pgd.Project{Version: 1, PgVersion: "18", DefaultSchema: "public", Schemas: []pgd.Schema{{Name: "public"}}}, "")
+		st.SetDemo(true)
+		inputPath = "(demo)"
+	} else {
+		inputPath = flag.Arg(0)
+		reOpts := pgre.Options{Full: *fullRE}
+		if *schemaFilter != "" {
+			reOpts.Schemas = strings.Split(*schemaFilter, ",")
+		}
+
+		project, err := loadFile(inputPath, reOpts)
+		if err != nil {
+			log.Fatalf("failed to load %s: %v", inputPath, err)
+		}
+
+		st = store.NewProjectStore(project, pgdFilePath(inputPath))
+		st.StartAutoBackup(30 * time.Second)
 	}
 
-	inputPath := flag.Arg(0)
-	reOpts := pgre.Options{Full: *fullRE}
-	if *schemaFilter != "" {
-		reOpts.Schemas = strings.Split(*schemaFilter, ",")
+	var appOpts []app.AppOption
+	if *readOnly {
+		appOpts = append(appOpts, app.WithReadOnly())
 	}
+	a := app.NewWithStore(st, appOpts...)
 
-	project, err := loadFile(inputPath, reOpts)
-	if err != nil {
-		log.Fatalf("failed to load %s: %v", inputPath, err)
+	// Track recent file.
+	if inputPath != "(demo)" {
+		a.Config().AddRecentFile(pgdFilePath(inputPath))
+		_ = a.Config().Save()
 	}
-
-	st := store.NewProjectStore(project, pgdFilePath(inputPath))
-	st.StartAutoBackup(30 * time.Second)
-	a := app.NewWithStore(st)
 
 	if distFS := frontend.DistFS(); distFS != nil {
 		a.SetFrontend(distFS)

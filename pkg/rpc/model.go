@@ -50,6 +50,24 @@ type ProjectInfo struct {
 	AutoSave        bool     `json:"autoSave"`
 	Schemas         []string `json:"schemas"`
 	DefaultNullable bool     `json:"defaultNullable"`
+	IsDemo          bool     `json:"isDemo"`
+	IsRegistered    bool     `json:"isRegistered"`
+	FilePath        string   `json:"filePath"`
+}
+
+// DemoSchema describes an available embedded demo schema.
+type DemoSchema struct {
+	Name   string `json:"name"`
+	Title  string `json:"title"`
+	Tables int    `json:"tables"`
+	FKs    int    `json:"fks"`
+}
+
+// DiffExample describes an available pre-built diff example.
+type DiffExample struct {
+	Name        string `json:"name"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
 }
 
 // ProjectSettings holds editable project-level settings.

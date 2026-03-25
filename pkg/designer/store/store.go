@@ -21,6 +21,7 @@ type ProjectStore struct {
 	filePath     string
 	dirty        bool
 	autoSave     bool
+	demo         bool // true when running embedded demo schema
 	backupTicker *time.Ticker
 	stopBackup   chan struct{}
 }
@@ -84,6 +85,8 @@ func (s *ProjectStore) SetAutoSave(enabled bool) {
 
 // FilePath returns the current .pgd file path.
 func (s *ProjectStore) FilePath() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.filePath
 }
 
@@ -164,6 +167,31 @@ func (s *ProjectStore) markDirtyLocked() error {
 		return s.saveLocked()
 	}
 	return nil
+}
+
+// IsDemo reports whether the store is running an embedded demo schema.
+func (s *ProjectStore) IsDemo() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.demo
+}
+
+// SetDemo marks the store as demo mode.
+func (s *ProjectStore) SetDemo(v bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.demo = v
+}
+
+// ReplaceProject replaces the entire project (e.g. when opening a demo or importing a file).
+func (s *ProjectStore) ReplaceProject(project *pgd.Project, filePath string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.project = project
+	s.saved = deepCopyProject(project)
+	s.filePath = filePath
+	s.dirty = false
+	s.demo = false
 }
 
 // --- Mutations ---

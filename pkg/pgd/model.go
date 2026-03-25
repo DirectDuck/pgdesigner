@@ -34,6 +34,23 @@ type Project struct {
 	Layouts     Layouts      `xml:"layouts"`
 }
 
+// NewEmptyProject creates a minimal empty project with default settings.
+func NewEmptyProject() *Project {
+	return &Project{
+		Version:       1,
+		PgVersion:     "18",
+		DefaultSchema: "public",
+		ProjectMeta: ProjectMeta{
+			Name: "Untitled",
+			Settings: Settings{
+				Naming:   Naming{Convention: "camelCase", Tables: "plural"},
+				Defaults: Defaults{Nullable: "false", OnDelete: "restrict", OnUpdate: "restrict"},
+			},
+		},
+		Schemas: []Schema{{Name: "public"}},
+	}
+}
+
 // ProjectMeta holds project-level settings. // pgdesigner-specific
 type ProjectMeta struct {
 	Name        string   `xml:"name,attr"`

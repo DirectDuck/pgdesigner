@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/vmkteam/pgdesigner/pkg/designer/diff"
+	"github.com/vmkteam/pgdesigner/pkg/designer/gendata"
 	"github.com/vmkteam/pgdesigner/pkg/designer/lint"
 	"github.com/vmkteam/pgdesigner/pkg/designer/store"
 	"github.com/vmkteam/pgdesigner/pkg/pgd"
@@ -15,8 +16,9 @@ import (
 // ProjectService provides access to the loaded .pgd project.
 type ProjectService struct {
 	zenrpc.Service
-	project *pgd.Project
-	store   *store.ProjectStore // nil for read-only mode
+	project        *pgd.Project
+	store          *store.ProjectStore // nil for read-only mode
+	isRegisteredFn func() bool         // callback to check registration status
 }
 
 // NewProjectService creates a read-only ProjectService.
@@ -25,16 +27,26 @@ func NewProjectService(project *pgd.Project) *ProjectService {
 }
 
 // NewProjectServiceWithStore creates a ProjectService backed by a ProjectStore (read-write).
-func NewProjectServiceWithStore(s *store.ProjectStore) *ProjectService {
-	return &ProjectService{project: s.Project(), store: s}
+func NewProjectServiceWithStore(s *store.ProjectStore, isRegisteredFn func() bool) *ProjectService {
+	return &ProjectService{project: s.Project(), store: s, isRegisteredFn: isRegisteredFn}
+}
+
+// getProject returns the current project. When backed by a store, always returns the
+// store's project (which may change after OpenDemo/OpenFile).
+func (s ProjectService) getProject() *pgd.Project {
+	if s.store != nil {
+		return s.store.Project()
+	}
+	return s.project
 }
 
 // GetInfo returns project metadata.
 //
 //zenrpc:return ProjectInfo
 func (s ProjectService) GetInfo() ProjectInfo {
+	p := s.getProject()
 	var tables, refs, indexes int
-	for _, sc := range s.project.Schemas {
+	for _, sc := range p.Schemas {
 		tables += len(sc.Tables)
 		indexes += len(sc.Indexes)
 		for _, t := range sc.Tables {
@@ -45,16 +57,29 @@ func (s ProjectService) GetInfo() ProjectInfo {
 	if s.store != nil {
 		autoSave = s.store.AutoSave()
 	}
-	schemaNames := MapV(s.project.Schemas, func(sc pgd.Schema) string { return sc.Name })
+	schemaNames := MapV(p.Schemas, func(sc pgd.Schema) string { return sc.Name })
+	var filePath string
+	var isDemo bool
+	if s.store != nil {
+		filePath = s.store.FilePath()
+		isDemo = s.store.IsDemo()
+	}
+	var isRegistered bool
+	if s.isRegisteredFn != nil {
+		isRegistered = s.isRegisteredFn()
+	}
 	return ProjectInfo{
-		Name:            s.project.ProjectMeta.Name,
-		PgVersion:       s.project.PgVersion,
+		Name:            p.ProjectMeta.Name,
+		PgVersion:       p.PgVersion,
 		Tables:          tables,
 		References:      refs,
 		Indexes:         indexes,
 		AutoSave:        autoSave,
 		Schemas:         schemaNames,
-		DefaultNullable: s.project.ProjectMeta.Settings.Defaults.Nullable != "false",
+		DefaultNullable: p.ProjectMeta.Settings.Defaults.Nullable != "false",
+		IsDemo:          isDemo,
+		IsRegistered:    isRegistered,
+		FilePath:        filePath,
 	}
 }
 
@@ -62,28 +87,42 @@ func (s ProjectService) GetInfo() ProjectInfo {
 //
 //zenrpc:return ERDSchema
 func (s ProjectService) GetSchema() ERDSchema {
-	return newERDSchema(s.project.ToERDSchema())
+	return newERDSchema(s.getProject().ToERDSchema())
 }
 
 // GetDDL returns the full DDL for the project.
 //
 //zenrpc:return string
 func (s ProjectService) GetDDL() string {
-	return pgd.GenerateDDL(s.project)
+	return pgd.GenerateDDL(s.getProject())
+}
+
+// GenerateTestData returns INSERT statements with fake test data.
+//
+//zenrpc:seed random seed (0 = random)
+//zenrpc:rows default rows per table
+//zenrpc:return string
+func (s ProjectService) GenerateTestData(seed int64, rows int) (string, error) {
+	var buf strings.Builder
+	opts := gendata.Options{Seed: seed, Rows: rows}
+	if err := gendata.Generate(&buf, s.getProject(), opts); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 // Lint validates the project and returns lint issues.
 //
 //zenrpc:return []LintIssue
 func (s ProjectService) Lint() []LintIssue {
-	return NewLintIssues(lint.Validate(s.project))
+	return NewLintIssues(lint.Validate(s.getProject()))
 }
 
 // ListObjects returns a flat list of all database objects for Go-To search.
 //
 //zenrpc:return []ObjectItem
 func (s ProjectService) ListObjects() []ObjectItem {
-	return newObjectItems(s.project)
+	return newObjectItems(s.getProject())
 }
 
 // GetTable returns full table data for the Table Editor.
@@ -93,12 +132,12 @@ func (s ProjectService) ListObjects() []ObjectItem {
 //zenrpc:404 Not Found
 func (s ProjectService) GetTable(name string) (*TableDetail, error) {
 	// Support qualified name "schema.table" or plain "table"
-	defaultSchema := s.project.DefaultSchema
+	defaultSchema := s.getProject().DefaultSchema
 	if defaultSchema == "" {
 		defaultSchema = "public"
 	}
-	for i := range s.project.Schemas {
-		schema := &s.project.Schemas[i]
+	for i := range s.getProject().Schemas {
+		schema := &s.getProject().Schemas[i]
 		for j := range schema.Tables {
 			t := &schema.Tables[j]
 			qualName := t.Name
@@ -106,7 +145,7 @@ func (s ProjectService) GetTable(name string) (*TableDetail, error) {
 				qualName = schema.Name + "." + t.Name
 			}
 			if qualName == name || t.Name == name {
-				return newTableDetail(s.project, t, schema), nil
+				return newTableDetail(s.getProject(), t, schema), nil
 			}
 		}
 	}
@@ -121,6 +160,17 @@ func (s ProjectService) SaveProject() (bool, error) {
 		return false, errors.New("read-only mode")
 	}
 	return true, s.store.Save()
+}
+
+// SaveProjectAs saves the project to a new file path.
+//
+//zenrpc:path new file path (.pgd)
+//zenrpc:return bool
+func (s ProjectService) SaveProjectAs(path string) (bool, error) {
+	if s.store == nil {
+		return false, errors.New("read-only mode")
+	}
+	return true, s.store.SaveAs(path)
 }
 
 // SaveLayout updates table positions in the default layout.
@@ -202,14 +252,14 @@ func (s ProjectService) ListTypes() []TypeInfo {
 	}
 
 	// User-defined types from the project
-	if s.project.Types != nil {
-		for _, e := range s.project.Types.Enums {
+	if s.getProject().Types != nil {
+		for _, e := range s.getProject().Types.Enums {
 			types = append(types, TypeInfo{Name: e.Name, Category: "enum", Source: "user"})
 		}
-		for _, c := range s.project.Types.Composites {
+		for _, c := range s.getProject().Types.Composites {
 			types = append(types, TypeInfo{Name: c.Name, Category: "composite", Source: "user"})
 		}
-		for _, d := range s.project.Types.Domains {
+		for _, d := range s.getProject().Types.Domains {
 			types = append(types, TypeInfo{Name: d.Name, Category: "domain", Source: "user"})
 		}
 	}
@@ -311,7 +361,7 @@ func (s ProjectService) UpdateTable(
 	}
 
 	// Validate the resulting table (server-side, Phase 2).
-	issues := lint.ValidateTable(s.project, name, true)
+	issues := lint.ValidateTable(s.getProject(), name, true)
 	if len(issues) > 0 {
 		return nil, &zenrpc.Error{
 			Code:    422,
@@ -416,7 +466,7 @@ func (s ProjectService) DiffUnsaved() (*DiffUnsavedResult, error) {
 	if saved == nil {
 		return &DiffUnsavedResult{}, nil
 	}
-	result := diff.Diff(saved, s.project)
+	result := diff.Diff(saved, s.getProject())
 	return &DiffUnsavedResult{
 		SQL:     result.SQL(),
 		Changes: NewDiffChanges(result.Changes),
@@ -436,7 +486,7 @@ func (s ProjectService) FixLintIssues(issues []LintFixRequest) (*FixLintResult, 
 	}
 
 	// Validate once, index by code+path for O(1) lookup.
-	current := lint.Validate(s.project)
+	current := lint.Validate(s.getProject())
 	type key struct{ code, path string }
 	idx := make(map[key]lint.Issue, len(current))
 	for _, cur := range current {
@@ -487,13 +537,13 @@ func (s ProjectService) IgnoreLintRules(rules []string, table *string) ([]LintIs
 func (s ProjectService) GetIgnoredRules() []IgnoredRule {
 	var result []IgnoredRule
 	// Project-level
-	if s.project.ProjectMeta.Settings.Lint != nil {
-		for _, code := range splitCSV(s.project.ProjectMeta.Settings.Lint.IgnoreRules) {
+	if s.getProject().ProjectMeta.Settings.Lint != nil {
+		for _, code := range splitCSV(s.getProject().ProjectMeta.Settings.Lint.IgnoreRules) {
 			result = append(result, IgnoredRule{Code: code, Title: ruleTitle(code), Scope: "project"})
 		}
 	}
 	// Table-level
-	for _, schema := range s.project.Schemas {
+	for _, schema := range s.getProject().Schemas {
 		for _, t := range schema.Tables {
 			for _, code := range splitCSV(t.LintIgnore) {
 				result = append(result, IgnoredRule{Code: code, Title: ruleTitle(code), Scope: schema.Name + "." + t.Name})
@@ -594,7 +644,7 @@ func (s ProjectService) MoveTable(name, toSchema string) (bool, error) {
 //
 //zenrpc:return ProjectSettings
 func (s ProjectService) GetProjectSettings() ProjectSettings {
-	p := s.project
+	p := s.getProject()
 	var lintIgnore string
 	if p.ProjectMeta.Settings.Lint != nil {
 		lintIgnore = p.ProjectMeta.Settings.Lint.IgnoreRules
@@ -644,9 +694,17 @@ func (s ProjectService) UpdateProjectSettings(settings ProjectSettings) (bool, e
 //zenrpc:return []LintIssue
 //zenrpc:404 Not Found
 func (s ProjectService) LintTable(name string) ([]LintIssue, error) {
-	issues := lint.ValidateTable(s.project, name, false)
+	issues := lint.ValidateTable(s.getProject(), name, false)
 	if issues == nil {
 		return nil, fmt.Errorf("table %q not found", name)
 	}
 	return NewLintIssues(issues), nil
+}
+
+// Singularize returns the singular form of a word.
+//
+//zenrpc:word    word to singularize
+//zenrpc:return  string
+func (s ProjectService) Singularize(word string) string {
+	return lint.Singularize(word)
 }

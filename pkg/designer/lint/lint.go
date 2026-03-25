@@ -1033,7 +1033,9 @@ func ExpectedPKName(tableName, naming string) []string {
 	return names
 }
 
-// singularize returns singular form in the same case style as input.
+// Singularize returns singular form in the same case style as input.
+func Singularize(name string) string { return singularize(name) }
+
 func singularize(name string) string {
 	if name == "" {
 		return ""

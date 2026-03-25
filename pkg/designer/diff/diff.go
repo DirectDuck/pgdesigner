@@ -17,10 +17,13 @@ type DiffResult struct {
 	Changes []Change
 }
 
-// SQL returns the full migration script.
+// SQL returns the full migration script with hazard comments.
 func (r *DiffResult) SQL() string {
 	var b strings.Builder
 	for _, c := range r.Changes {
+		for _, h := range c.Hazards {
+			fmt.Fprintf(&b, "-- [%s] %s: %s\n", h.Level, h.Code, h.Message)
+		}
 		b.WriteString(c.SQL)
 		b.WriteString("\n\n")
 	}

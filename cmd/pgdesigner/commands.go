@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/vmkteam/pgdesigner/pkg/designer/diff"
+	"github.com/vmkteam/pgdesigner/pkg/designer/gendata"
 	"github.com/vmkteam/pgdesigner/pkg/designer/lint"
 	"github.com/vmkteam/pgdesigner/pkg/designer/merge"
 	"github.com/vmkteam/pgdesigner/pkg/format"
@@ -301,4 +302,63 @@ func runMerge(args []string) {
 		log.Fatal(err)
 	}
 	fmt.Fprintf(os.Stderr, "→ %s\n", outPath)
+}
+
+func runTestData(args []string) {
+	fs := flag.NewFlagSet("testdata", flag.ExitOnError)
+	outFile := fs.String("o", "", "output .sql file (default: stdout)")
+	seed := fs.Int64("seed", 0, "random seed (0 = random)")
+	rows := fs.Int("rows", gendata.DefaultRows, "default rows per table")
+	tables := fs.String("tables", "", "generate only these tables (comma-separated)")
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: pgdesigner testdata [flags] <file.pgd|.dbs|.pdd|.sql>\n\nFlags:\n")
+		fs.PrintDefaults()
+	}
+	_ = fs.Parse(args)
+
+	if fs.NArg() < 1 {
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	project, err := loadFile(fs.Arg(0), pgre.Options{})
+	if err != nil {
+		log.Fatalf("failed to load %s: %v", fs.Arg(0), err)
+	}
+
+	opts := gendata.Options{
+		Seed: *seed,
+		Rows: *rows,
+	}
+
+	// parse --tables flag into skip map
+	if *tables != "" {
+		include := make(map[string]bool)
+		for _, t := range strings.Split(*tables, ",") {
+			include[strings.TrimSpace(t)] = true
+		}
+		opts.Tables = make(map[string]gendata.Table)
+		for _, s := range project.Schemas {
+			for _, t := range s.Tables {
+				if !include[t.Name] {
+					opts.Tables[t.Name] = gendata.Table{Skip: true}
+				}
+			}
+		}
+	}
+
+	var buf strings.Builder
+	if err := gendata.Generate(&buf, project, opts); err != nil {
+		log.Fatalf("failed to generate test data: %v", err)
+	}
+
+	sql := buf.String()
+	if *outFile != "" {
+		if err := os.WriteFile(*outFile, []byte(sql), 0644); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Fprintf(os.Stderr, "Generated %s (%d lines)\n", *outFile, strings.Count(sql, "\n"))
+	} else {
+		fmt.Print(sql)
+	}
 }

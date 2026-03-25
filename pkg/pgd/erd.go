@@ -67,16 +67,15 @@ func (p *Project) ToERDSchema() ERDSchema { //nolint:gocognit // multi-schema su
 
 	// Resolve FK target to erdKey (ToTable may be "table" or "schema.table")
 	erdFKTarget := func(fromSchema, toTable string) string {
-		// If already qualified, use as-is but apply erdKey logic
-		for _, s := range p.Schemas {
-			if s.Name+"."+toTable == toTable {
-				return toTable // already qualified
-			}
+		// If already qualified (schema.table), split and apply erdKey
+		if strings.Contains(toTable, ".") {
+			parts := strings.SplitN(toTable, ".", 2)
+			return erdKey(parts[0], parts[1])
 		}
 		// Try same schema first
-		for _, t := range p.Schemas {
-			if t.Name == fromSchema {
-				for _, tbl := range t.Tables {
+		for _, s := range p.Schemas {
+			if s.Name == fromSchema {
+				for _, tbl := range s.Tables {
 					if tbl.Name == toTable {
 						return erdKey(fromSchema, toTable)
 					}
@@ -84,9 +83,9 @@ func (p *Project) ToERDSchema() ERDSchema { //nolint:gocognit // multi-schema su
 			}
 		}
 		// Try default schema
-		for _, t := range p.Schemas {
-			if t.Name == defaultSchema {
-				for _, tbl := range t.Tables {
+		for _, s := range p.Schemas {
+			if s.Name == defaultSchema {
+				for _, tbl := range s.Tables {
 					if tbl.Name == toTable {
 						return erdKey(defaultSchema, toTable)
 					}

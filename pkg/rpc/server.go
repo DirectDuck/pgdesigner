@@ -2,6 +2,8 @@
 package rpc
 
 import (
+	"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/vmkteam/pgdesigner/pkg/designer/store"
@@ -13,26 +15,75 @@ import (
 
 var (
 	ErrInternal = zenrpc.NewStringError(http.StatusInternalServerError, "internal error")
+	ErrReadOnly = zenrpc.NewStringError(http.StatusForbidden, "read-only mode: editing is disabled")
 )
+
+// writeMethods lists RPC method names that modify project state.
+// Blocked in read-only mode via middleware. Names are without namespace prefix
+// because zenrpc passes only the method part to middleware.
+var writeMethods = map[string]bool{
+	RPC.ProjectService.SaveProject:           true,
+	RPC.ProjectService.SaveLayout:            true,
+	RPC.ProjectService.SetAutoSave:           true,
+	RPC.ProjectService.UpdateTable:           true,
+	RPC.ProjectService.CreateTable:           true,
+	RPC.ProjectService.DeleteTable:           true,
+	RPC.ProjectService.CreateSchema:          true,
+	RPC.ProjectService.DeleteSchema:          true,
+	RPC.ProjectService.MoveTable:             true,
+	RPC.ProjectService.FixLintIssues:         true,
+	RPC.ProjectService.IgnoreLintRules:       true,
+	RPC.ProjectService.UnignoreLintRules:     true,
+	RPC.ProjectService.UpdateProjectSettings: true,
+	RPC.ProjectService.SaveProjectAs:         true,
+}
+
+// readOnlyMiddleware blocks write methods in read-only mode.
+func readOnlyMiddleware(next zenrpc.InvokeFunc) zenrpc.InvokeFunc {
+	return func(ctx context.Context, method string, params json.RawMessage) zenrpc.Response {
+		if writeMethods[method] {
+			return zenrpc.Response{Error: ErrReadOnly}
+		}
+		return next(ctx, method, params)
+	}
+}
+
+// ServerOptions configures the RPC server.
+type ServerOptions struct {
+	Store          *store.ProjectStore
+	QuitCh         chan struct{}
+	IsRegisteredFn func() bool
+	Config         ConfigCallbacks
+	ReadOnly       bool
+}
 
 // New returns a new zenrpc Server with ProjectService (read-only).
 func New(project *pgd.Project, quitCh chan struct{}) *zenrpc.Server {
-	return newServer(NewProjectService(project), quitCh)
-}
-
-// NewWithStore returns a new zenrpc Server with ProjectService backed by a ProjectStore.
-func NewWithStore(s *store.ProjectStore, quitCh chan struct{}) *zenrpc.Server {
-	return newServer(NewProjectServiceWithStore(s), quitCh)
-}
-
-func newServer(ps *ProjectService, quitCh chan struct{}) *zenrpc.Server {
+	ps := NewProjectService(project)
 	srv := zenrpc.NewServer(zenrpc.Options{
 		ExposeSMD: true,
 		AllowCORS: true,
 	})
 	srv.RegisterAll(map[string]zenrpc.Invoker{
 		"project": ps,
-		"app":     NewAppService(quitCh),
+		"app":     NewAppService(quitCh, nil, ConfigCallbacks{}),
+	})
+	return srv
+}
+
+// NewWithStore returns a new zenrpc Server with ProjectService backed by a ProjectStore.
+func NewWithStore(opts ServerOptions) *zenrpc.Server {
+	ps := NewProjectServiceWithStore(opts.Store, opts.IsRegisteredFn)
+	srv := zenrpc.NewServer(zenrpc.Options{
+		ExposeSMD: true,
+		AllowCORS: true,
+	})
+	if opts.ReadOnly {
+		srv.Use(readOnlyMiddleware)
+	}
+	srv.RegisterAll(map[string]zenrpc.Invoker{
+		"project": ps,
+		"app":     NewAppService(opts.QuitCh, opts.Store, opts.Config),
 	})
 	return srv
 }

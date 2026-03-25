@@ -14,8 +14,8 @@ build: ## Build binary
 
 build-full: build-frontend build ## Build with embedded frontend
 
-build-frontend: ## Build Vue frontend (pnpm build)
-	cd frontend && pnpm build
+build-frontend: ## Build Vue frontend (lint + test + build)
+	cd frontend && pnpm oxlint && pnpm eslint . && pnpm vitest run && pnpm build
 
 test: ## Run all tests
 	go clean -testcache
@@ -47,33 +47,33 @@ install: ## Install binary to GOPATH/bin
 dev: dev-backend ## Run dev server (backend)
 
 dev-backend: build ## Run Go backend on :$(RPC_PORT)
-	./$(BINARY) --port $(RPC_PORT) pkg/pgd/testdata/pagila.pgd
+	./$(BINARY) --port $(RPC_PORT) pkg/format/sql/testdata/pagila.pgd
 
 dev-frontend: ## Run Vite dev server (frontend)
 	cd frontend && pnpm dev
 
 pglint: build ## Validate pagila.pgd schema (warnings+)
-	./$(BINARY) lint -s warning pkg/pgd/testdata/pagila.pgd
+	./$(BINARY) lint -s warning pkg/format/sql/testdata/pagila.pgd
 
 pglint-all: build ## Validate all .pgd test files
-	@for f in pkg/pgd/testdata/*.pgd; do \
+	@for f in pkg/format/sql/testdata/*.pgd; do \
 		echo "=== $$f ==="; \
 		./$(BINARY) lint -s warning "$$f"; \
 		echo; \
 	done
 
 pglint-json: build ## Validate pagila.pgd as JSON
-	./$(BINARY) lint -f json pkg/pgd/testdata/pagila.pgd
+	./$(BINARY) lint -f json pkg/format/sql/testdata/pagila.pgd
 
 demo: build-full ## Prepare demo/ directory with binary and sample schemas
 	@mkdir -p demo/schemas/{pgd,sql,pdd} demo/diff/{add-table,add-column,move-column,modify-index}
 	cp $(BINARY) demo/$(BINARY)
 	@# PGD schemas (native format)
-	cp pkg/pgd/testdata/chinook.pgd demo/schemas/pgd/
-	cp pkg/pgd/testdata/northwind.pgd demo/schemas/pgd/
-	cp pkg/pgd/testdata/pagila.pgd demo/schemas/pgd/
-	cp pkg/pgd/testdata/airlines.pgd demo/schemas/pgd/
-	cp pkg/pgd/testdata/adventureworks.pgd demo/schemas/pgd/
+	cp pkg/format/sql/testdata/chinook.pgd demo/schemas/pgd/
+	cp pkg/format/sql/testdata/northwind.pgd demo/schemas/pgd/
+	cp pkg/format/sql/testdata/pagila.pgd demo/schemas/pgd/
+	cp pkg/format/sql/testdata/airlines.pgd demo/schemas/pgd/
+	cp pkg/format/sql/testdata/adventureworks.pgd demo/schemas/pgd/
 	@# SQL (pg_dump)
 	cp pkg/format/sql/testdata/chinook.sql demo/schemas/sql/
 	cp pkg/format/sql/testdata/northwind.sql demo/schemas/sql/
@@ -85,30 +85,30 @@ demo: build-full ## Prepare demo/ directory with binary and sample schemas
 	cp pkg/format/pdd/testdata/AdventureWorks.pdd demo/schemas/pdd/
 	cp pkg/format/pdd/testdata/pagila-light.pdd demo/schemas/pdd/
 	@# Diff examples
-	cp pkg/designer/diff/testdata/diff/plf-751-add-table/old.pgd demo/diff/add-table/old.pgd
-	cp pkg/designer/diff/testdata/diff/plf-751-add-table/new.pgd demo/diff/add-table/new.pgd
-	cp pkg/designer/diff/testdata/diff/plf-885-add-column/old.pgd demo/diff/add-column/old.pgd
-	cp pkg/designer/diff/testdata/diff/plf-885-add-column/new.pgd demo/diff/add-column/new.pgd
-	cp pkg/designer/diff/testdata/diff/plf-801-move-column/old.pgd demo/diff/move-column/old.pgd
-	cp pkg/designer/diff/testdata/diff/plf-801-move-column/new.pgd demo/diff/move-column/new.pgd
-	cp pkg/designer/diff/testdata/diff/plf-890-modify-index/old.pgd demo/diff/modify-index/old.pgd
-	cp pkg/designer/diff/testdata/diff/plf-890-modify-index/new.pgd demo/diff/modify-index/new.pgd
+	cp pkg/designer/diff/testdata/diff/add-table/old.pgd demo/diff/add-table/old.pgd
+	cp pkg/designer/diff/testdata/diff/add-table/new.pgd demo/diff/add-table/new.pgd
+	cp pkg/designer/diff/testdata/diff/add-column/old.pgd demo/diff/add-column/old.pgd
+	cp pkg/designer/diff/testdata/diff/add-column/new.pgd demo/diff/add-column/new.pgd
+	cp pkg/designer/diff/testdata/diff/move-column/old.pgd demo/diff/move-column/old.pgd
+	cp pkg/designer/diff/testdata/diff/move-column/new.pgd demo/diff/move-column/new.pgd
+	cp pkg/designer/diff/testdata/diff/modify-index/old.pgd demo/diff/modify-index/old.pgd
+	cp pkg/designer/diff/testdata/diff/modify-index/new.pgd demo/diff/modify-index/new.pgd
 	@echo "Demo ready! cd demo && make help"
 
 run-chinook: build ## Open ERD: Chinook (11 tables)
-	./$(BINARY) pkg/pgd/testdata/chinook.pgd
+	./$(BINARY) pkg/format/sql/testdata/chinook.pgd
 
 run-pagila: build ## Open ERD: Pagila (15 tables, partitions, triggers)
-	./$(BINARY) pkg/pgd/testdata/pagila.pgd
+	./$(BINARY) pkg/format/sql/testdata/pagila.pgd
 
 run-adventureworks: build ## Open ERD: AdventureWorks (68 tables, 5 schemas)
-	./$(BINARY) pkg/pgd/testdata/adventureworks.pgd
+	./$(BINARY) pkg/format/sql/testdata/adventureworks.pgd
 
 run-airlines: build ## Open ERD: Airlines (8 tables, bookings schema)
-	./$(BINARY) pkg/pgd/testdata/airlines.pgd
+	./$(BINARY) pkg/format/sql/testdata/airlines.pgd
 
 run-northwind: build ## Open ERD: Northwind (14 tables)
-	./$(BINARY) pkg/pgd/testdata/northwind.pgd
+	./$(BINARY) pkg/format/sql/testdata/northwind.pgd
 
 # reverse engineering from live PostgreSQL
 run-re: build ## Open ERD from live PG (requires PGD_DSN)

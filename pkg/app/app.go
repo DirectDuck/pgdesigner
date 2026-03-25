@@ -4,6 +4,7 @@ package app
 import (
 	"fmt"
 	"io/fs"
+	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -18,10 +19,20 @@ import (
 // App is the PgDesigner HTTP application.
 type App struct {
 	store      *store.ProjectStore
+	cfg        *Config
 	rpcSrv     *zenrpc.Server
 	listener   net.Listener
 	frontendFS fs.FS
 	quitCh     chan struct{}
+}
+
+// AppOption configures App creation.
+type AppOption func(*appOptions)
+type appOptions struct{ readOnly bool }
+
+// WithReadOnly disables all write RPC methods.
+func WithReadOnly() AppOption {
+	return func(o *appOptions) { o.readOnly = true }
 }
 
 // New creates a new App with the given project.
@@ -29,15 +40,47 @@ func New(project *pgd.Project) *App {
 	return NewWithStore(store.NewProjectStore(project, ""))
 }
 
-// NewWithStore creates a new App with the given store.
-func NewWithStore(s *store.ProjectStore) *App {
+// NewWithStore creates a new App with the given store. Options: WithReadOnly.
+func NewWithStore(s *store.ProjectStore, opts ...AppOption) *App {
+	var o appOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
+
+	cfg, err := Load()
+	if err != nil {
+		log.Printf("warning: failed to load config: %v", err)
+		cfg = &Config{}
+	}
+
 	quitCh := make(chan struct{})
 	return &App{
-		store:  s,
-		rpcSrv: rpc.NewWithStore(s, quitCh),
+		store: s,
+		cfg:   cfg,
+		rpcSrv: rpc.NewWithStore(rpc.ServerOptions{
+			Store:          s,
+			QuitCh:         quitCh,
+			IsRegisteredFn: cfg.IsRegistered,
+			ReadOnly:       o.readOnly,
+			Config: rpc.ConfigCallbacks{
+				Register: func(email string) error {
+					cfg.RegisteredEmail = email
+					return cfg.Save()
+				},
+				IsRegistered:   cfg.IsRegistered,
+				GetRecentFiles: func() []string { return cfg.RecentFiles },
+				AddRecentFile: func(path string) error {
+					cfg.AddRecentFile(path)
+					return cfg.Save()
+				},
+			},
+		}),
 		quitCh: quitCh,
 	}
 }
+
+// Config returns the application config.
+func (a *App) Config() *Config { return a.cfg }
 
 // Store returns the project store.
 func (a *App) Store() *store.ProjectStore { return a.store }

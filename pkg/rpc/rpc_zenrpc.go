@@ -11,22 +11,33 @@ import (
 )
 
 var RPC = struct {
-	AppService     struct{ Quit, Ping, About string }
-	ProjectService struct{ GetInfo, GetSchema, GetDDL, Lint, ListObjects, GetTable, SaveProject, SaveLayout, IsDirty, GetAutoSave, SetAutoSave, ListTypes, UpdateTable, PreviewDiff, DiffUnsaved, FixLintIssues, IgnoreLintRules, GetIgnoredRules, UnignoreLintRules, CreateTable, DeleteTable, CreateSchema, DeleteSchema, MoveTable, GetProjectSettings, UpdateProjectSettings, LintTable string }
+	AppService     struct{ Quit, Ping, About, ListDemoSchemas, OpenDemo, OpenFile, NewProject, CloseProject, Register, GetRecentFiles, ListDiffExamples, RunDiffExample string }
+	ProjectService struct{ GetInfo, GetSchema, GetDDL, GenerateTestData, Lint, ListObjects, GetTable, SaveProject, SaveProjectAs, SaveLayout, IsDirty, GetAutoSave, SetAutoSave, ListTypes, UpdateTable, PreviewDiff, DiffUnsaved, FixLintIssues, IgnoreLintRules, GetIgnoredRules, UnignoreLintRules, CreateTable, DeleteTable, CreateSchema, DeleteSchema, MoveTable, GetProjectSettings, UpdateProjectSettings, LintTable, Singularize string }
 }{
-	AppService: struct{ Quit, Ping, About string }{
-		Quit:  "quit",
-		Ping:  "ping",
-		About: "about",
+	AppService: struct{ Quit, Ping, About, ListDemoSchemas, OpenDemo, OpenFile, NewProject, CloseProject, Register, GetRecentFiles, ListDiffExamples, RunDiffExample string }{
+		Quit:             "quit",
+		Ping:             "ping",
+		About:            "about",
+		ListDemoSchemas:  "listdemoschemas",
+		OpenDemo:         "opendemo",
+		OpenFile:         "openfile",
+		NewProject:       "newproject",
+		CloseProject:     "closeproject",
+		Register:         "register",
+		GetRecentFiles:   "getrecentfiles",
+		ListDiffExamples: "listdiffexamples",
+		RunDiffExample:   "rundiffexample",
 	},
-	ProjectService: struct{ GetInfo, GetSchema, GetDDL, Lint, ListObjects, GetTable, SaveProject, SaveLayout, IsDirty, GetAutoSave, SetAutoSave, ListTypes, UpdateTable, PreviewDiff, DiffUnsaved, FixLintIssues, IgnoreLintRules, GetIgnoredRules, UnignoreLintRules, CreateTable, DeleteTable, CreateSchema, DeleteSchema, MoveTable, GetProjectSettings, UpdateProjectSettings, LintTable string }{
+	ProjectService: struct{ GetInfo, GetSchema, GetDDL, GenerateTestData, Lint, ListObjects, GetTable, SaveProject, SaveProjectAs, SaveLayout, IsDirty, GetAutoSave, SetAutoSave, ListTypes, UpdateTable, PreviewDiff, DiffUnsaved, FixLintIssues, IgnoreLintRules, GetIgnoredRules, UnignoreLintRules, CreateTable, DeleteTable, CreateSchema, DeleteSchema, MoveTable, GetProjectSettings, UpdateProjectSettings, LintTable, Singularize string }{
 		GetInfo:               "getinfo",
 		GetSchema:             "getschema",
 		GetDDL:                "getddl",
+		GenerateTestData:      "generatetestdata",
 		Lint:                  "lint",
 		ListObjects:           "listobjects",
 		GetTable:              "gettable",
 		SaveProject:           "saveproject",
+		SaveProjectAs:         "saveprojectas",
 		SaveLayout:            "savelayout",
 		IsDirty:               "isdirty",
 		GetAutoSave:           "getautosave",
@@ -47,6 +58,7 @@ var RPC = struct {
 		GetProjectSettings:    "getprojectsettings",
 		UpdateProjectSettings: "updateprojectsettings",
 		LintTable:             "linttable",
+		Singularize:           "singularize",
 	},
 }
 
@@ -111,6 +123,231 @@ zenrpc`,
 					},
 				},
 			},
+			"ListDemoSchemas": {
+				Description: `ListDemoSchemas returns available embedded demo schemas.`,
+				Parameters:  []smd.JSONSchema{},
+				Returns: smd.JSONSchema{
+					Description: `[]DemoSchema`,
+					Type:        smd.Array,
+					TypeName:    "[]DemoSchema",
+					Items: map[string]string{
+						"$ref": "#/definitions/DemoSchema",
+					},
+					Definitions: map[string]smd.Definition{
+						"DemoSchema": {
+							Type: "object",
+							Properties: smd.PropertyList{
+								{
+									Name: "name",
+									Type: smd.String,
+								},
+								{
+									Name: "title",
+									Type: smd.String,
+								},
+								{
+									Name: "tables",
+									Type: smd.Integer,
+								},
+								{
+									Name: "fks",
+									Type: smd.Integer,
+								},
+							},
+						},
+					},
+				},
+			},
+			"OpenDemo": {
+				Description: `OpenDemo loads an embedded demo schema by name.`,
+				Parameters: []smd.JSONSchema{
+					{
+						Name:        "name",
+						Description: `demo schema name (chinook, northwind, pagila, airlines, adventureworks)`,
+						Type:        smd.String,
+					},
+				},
+				Returns: smd.JSONSchema{
+					Description: `bool`,
+					Type:        smd.Boolean,
+				},
+			},
+			"OpenFile": {
+				Description: `OpenFile opens a file by path, auto-converting if necessary.`,
+				Parameters: []smd.JSONSchema{
+					{
+						Name:        "path",
+						Description: `full path to .pgd, .pdd, .dbs, .dm2, .sql file or PostgreSQL DSN`,
+						Type:        smd.String,
+					},
+				},
+				Returns: smd.JSONSchema{
+					Description: `bool`,
+					Type:        smd.Boolean,
+				},
+			},
+			"NewProject": {
+				Description: `NewProject creates a new empty project, replacing the current one.`,
+				Parameters:  []smd.JSONSchema{},
+				Returns: smd.JSONSchema{
+					Description: `bool`,
+					Type:        smd.Boolean,
+				},
+			},
+			"CloseProject": {
+				Description: `CloseProject replaces current project with empty one (returns to welcome screen).`,
+				Parameters:  []smd.JSONSchema{},
+				Returns: smd.JSONSchema{
+					Description: `bool`,
+					Type:        smd.Boolean,
+				},
+			},
+			"Register": {
+				Description: `Register sets the registered email (honor system, no validation).`,
+				Parameters: []smd.JSONSchema{
+					{
+						Name:        "email",
+						Description: `registered email`,
+						Type:        smd.String,
+					},
+				},
+				Returns: smd.JSONSchema{
+					Description: `bool`,
+					Type:        smd.Boolean,
+				},
+			},
+			"GetRecentFiles": {
+				Description: `GetRecentFiles returns the list of recently opened files.`,
+				Parameters:  []smd.JSONSchema{},
+				Returns: smd.JSONSchema{
+					Description: `[]string`,
+					Type:        smd.Array,
+					TypeName:    "[]",
+					Items: map[string]string{
+						"type": smd.String,
+					},
+				},
+			},
+			"ListDiffExamples": {
+				Description: `ListDiffExamples returns available pre-built diff examples.`,
+				Parameters:  []smd.JSONSchema{},
+				Returns: smd.JSONSchema{
+					Description: `[]DiffExample`,
+					Type:        smd.Array,
+					TypeName:    "[]DiffExample",
+					Items: map[string]string{
+						"$ref": "#/definitions/DiffExample",
+					},
+					Definitions: map[string]smd.Definition{
+						"DiffExample": {
+							Type: "object",
+							Properties: smd.PropertyList{
+								{
+									Name: "name",
+									Type: smd.String,
+								},
+								{
+									Name: "title",
+									Type: smd.String,
+								},
+								{
+									Name: "description",
+									Type: smd.String,
+								},
+							},
+						},
+					},
+				},
+			},
+			"RunDiffExample": {
+				Description: `RunDiffExample loads a diff pair and returns the diff result.`,
+				Parameters: []smd.JSONSchema{
+					{
+						Name:        "name",
+						Description: `diff example name (add-column, add-table, move-column, modify-index)`,
+						Type:        smd.String,
+					},
+				},
+				Returns: smd.JSONSchema{
+					Description: `DiffUnsavedResult`,
+					Optional:    true,
+					Type:        smd.Object,
+					TypeName:    "DiffUnsavedResult",
+					Properties: smd.PropertyList{
+						{
+							Name: "changes",
+							Type: smd.Array,
+							Items: map[string]string{
+								"$ref": "#/definitions/DiffChange",
+							},
+						},
+						{
+							Name:        "sql",
+							Description: `full ALTER script`,
+							Type:        smd.String,
+						},
+					},
+					Definitions: map[string]smd.Definition{
+						"DiffChange": {
+							Type: "object",
+							Properties: smd.PropertyList{
+								{
+									Name:        "object",
+									Description: `table, column, index, fk, pk, unique, check, enum`,
+									Type:        smd.String,
+								},
+								{
+									Name:        "action",
+									Description: `add, drop, alter`,
+									Type:        smd.String,
+								},
+								{
+									Name:        "table",
+									Description: `parent table (for column/constraint changes)`,
+									Type:        smd.String,
+								},
+								{
+									Name:        "name",
+									Description: `object name`,
+									Type:        smd.String,
+								},
+								{
+									Name:        "sql",
+									Description: `generated ALTER/CREATE/DROP`,
+									Type:        smd.String,
+								},
+								{
+									Name:        "hazards",
+									Description: `warnings`,
+									Type:        smd.Array,
+									Items: map[string]string{
+										"$ref": "#/definitions/DiffHazard",
+									},
+								},
+							},
+						},
+						"DiffHazard": {
+							Type: "object",
+							Properties: smd.PropertyList{
+								{
+									Name:        "level",
+									Description: `dangerous, warning, info`,
+									Type:        smd.String,
+								},
+								{
+									Name:        "code",
+									Description: `DELETES_DATA, TABLE_REWRITE, etc.`,
+									Type:        smd.String,
+								},
+								{
+									Name: "message",
+									Type: smd.String,
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 }
@@ -118,6 +355,7 @@ zenrpc`,
 // Invoke is as generated code from zenrpc cmd
 func (s AppService) Invoke(ctx context.Context, method string, params json.RawMessage) zenrpc.Response {
 	resp := zenrpc.Response{}
+	var err error
 
 	switch method {
 	case RPC.AppService.Quit:
@@ -128,6 +366,97 @@ func (s AppService) Invoke(ctx context.Context, method string, params json.RawMe
 
 	case RPC.AppService.About:
 		resp.Set(s.About())
+
+	case RPC.AppService.ListDemoSchemas:
+		resp.Set(s.ListDemoSchemas())
+
+	case RPC.AppService.OpenDemo:
+		var args = struct {
+			Name string `json:"name"`
+		}{}
+
+		if zenrpc.IsArray(params) {
+			if params, err = zenrpc.ConvertToObject([]string{"name"}, params); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &args); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		resp.Set(s.OpenDemo(args.Name))
+
+	case RPC.AppService.OpenFile:
+		var args = struct {
+			Path string `json:"path"`
+		}{}
+
+		if zenrpc.IsArray(params) {
+			if params, err = zenrpc.ConvertToObject([]string{"path"}, params); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &args); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		resp.Set(s.OpenFile(args.Path))
+
+	case RPC.AppService.NewProject:
+		resp.Set(s.NewProject())
+
+	case RPC.AppService.CloseProject:
+		resp.Set(s.CloseProject())
+
+	case RPC.AppService.Register:
+		var args = struct {
+			Email string `json:"email"`
+		}{}
+
+		if zenrpc.IsArray(params) {
+			if params, err = zenrpc.ConvertToObject([]string{"email"}, params); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &args); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		resp.Set(s.Register(args.Email))
+
+	case RPC.AppService.GetRecentFiles:
+		resp.Set(s.GetRecentFiles())
+
+	case RPC.AppService.ListDiffExamples:
+		resp.Set(s.ListDiffExamples())
+
+	case RPC.AppService.RunDiffExample:
+		var args = struct {
+			Name string `json:"name"`
+		}{}
+
+		if zenrpc.IsArray(params) {
+			if params, err = zenrpc.ConvertToObject([]string{"name"}, params); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &args); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		resp.Set(s.RunDiffExample(args.Name))
 
 	default:
 		resp = zenrpc.NewResponseError(nil, zenrpc.MethodNotFound, "", nil)
@@ -181,6 +510,18 @@ func (ProjectService) SMD() smd.ServiceInfo {
 						{
 							Name: "defaultNullable",
 							Type: smd.Boolean,
+						},
+						{
+							Name: "isDemo",
+							Type: smd.Boolean,
+						},
+						{
+							Name: "isRegistered",
+							Type: smd.Boolean,
+						},
+						{
+							Name: "filePath",
+							Type: smd.String,
 						},
 					},
 				},
@@ -321,6 +662,25 @@ func (ProjectService) SMD() smd.ServiceInfo {
 			"GetDDL": {
 				Description: `GetDDL returns the full DDL for the project.`,
 				Parameters:  []smd.JSONSchema{},
+				Returns: smd.JSONSchema{
+					Description: `string`,
+					Type:        smd.String,
+				},
+			},
+			"GenerateTestData": {
+				Description: `GenerateTestData returns INSERT statements with fake test data.`,
+				Parameters: []smd.JSONSchema{
+					{
+						Name:        "seed",
+						Description: `random seed (0 = random)`,
+						Type:        smd.Integer,
+					},
+					{
+						Name:        "rows",
+						Description: `default rows per table`,
+						Type:        smd.Integer,
+					},
+				},
 				Returns: smd.JSONSchema{
 					Description: `string`,
 					Type:        smd.String,
@@ -847,6 +1207,20 @@ func (ProjectService) SMD() smd.ServiceInfo {
 			"SaveProject": {
 				Description: `SaveProject writes the project to the .pgd file.`,
 				Parameters:  []smd.JSONSchema{},
+				Returns: smd.JSONSchema{
+					Description: `bool`,
+					Type:        smd.Boolean,
+				},
+			},
+			"SaveProjectAs": {
+				Description: `SaveProjectAs saves the project to a new file path.`,
+				Parameters: []smd.JSONSchema{
+					{
+						Name:        "path",
+						Description: `new file path (.pgd)`,
+						Type:        smd.String,
+					},
+				},
 				Returns: smd.JSONSchema{
 					Description: `bool`,
 					Type:        smd.Boolean,
@@ -2833,6 +3207,20 @@ It does NOT modify the project — only computes the diff.`,
 					404: "Not Found",
 				},
 			},
+			"Singularize": {
+				Description: `Singularize returns the singular form of a word.`,
+				Parameters: []smd.JSONSchema{
+					{
+						Name:        "word",
+						Description: `word to singularize`,
+						Type:        smd.String,
+					},
+				},
+				Returns: smd.JSONSchema{
+					Description: `string`,
+					Type:        smd.String,
+				},
+			},
 		},
 	}
 }
@@ -2851,6 +3239,26 @@ func (s ProjectService) Invoke(ctx context.Context, method string, params json.R
 
 	case RPC.ProjectService.GetDDL:
 		resp.Set(s.GetDDL())
+
+	case RPC.ProjectService.GenerateTestData:
+		var args = struct {
+			Seed int64 `json:"seed"`
+			Rows int   `json:"rows"`
+		}{}
+
+		if zenrpc.IsArray(params) {
+			if params, err = zenrpc.ConvertToObject([]string{"seed", "rows"}, params); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &args); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		resp.Set(s.GenerateTestData(args.Seed, args.Rows))
 
 	case RPC.ProjectService.Lint:
 		resp.Set(s.Lint())
@@ -2879,6 +3287,25 @@ func (s ProjectService) Invoke(ctx context.Context, method string, params json.R
 
 	case RPC.ProjectService.SaveProject:
 		resp.Set(s.SaveProject())
+
+	case RPC.ProjectService.SaveProjectAs:
+		var args = struct {
+			Path string `json:"path"`
+		}{}
+
+		if zenrpc.IsArray(params) {
+			if params, err = zenrpc.ConvertToObject([]string{"path"}, params); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &args); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		resp.Set(s.SaveProjectAs(args.Path))
 
 	case RPC.ProjectService.SaveLayout:
 		var args = struct {
@@ -3185,6 +3612,25 @@ func (s ProjectService) Invoke(ctx context.Context, method string, params json.R
 		}
 
 		resp.Set(s.LintTable(args.Name))
+
+	case RPC.ProjectService.Singularize:
+		var args = struct {
+			Word string `json:"word"`
+		}{}
+
+		if zenrpc.IsArray(params) {
+			if params, err = zenrpc.ConvertToObject([]string{"word"}, params); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &args); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		resp.Set(s.Singularize(args.Word))
 
 	default:
 		resp = zenrpc.NewResponseError(nil, zenrpc.MethodNotFound, "", nil)
