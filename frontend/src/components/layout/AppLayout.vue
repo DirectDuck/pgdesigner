@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
+import { useEventListener, useIntervalFn, useActiveElement } from '@vueuse/core'
 import {
   SplitterGroup,
   SplitterPanel,
@@ -87,10 +88,11 @@ function timeAgo(date: Date): string {
 
 // Refresh timeAgo display
 const _tick = ref(0)
-setInterval(() => { _tick.value++ }, 10000)
+useIntervalFn(() => { _tick.value++ }, 10000)
 
+const activeEl = useActiveElement()
 function isInputFocused(): boolean {
-  const el = document.activeElement
+  const el = activeEl.value
   if (!el) return false
   const tag = el.tagName
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (el as HTMLElement).isContentEditable
@@ -109,17 +111,13 @@ function onBeforeUnload(e: BeforeUnloadEvent) {
   }
 }
 
+useEventListener(window, 'beforeunload', onBeforeUnload)
+useEventListener(window, 'keydown', onGlobalKeydown)
+
 onMounted(() => {
   // Cancel any pending quit from a previous beforeunload (e.g. Ctrl+R reload).
   api.app.ping().catch(() => {})
   store.loadAll()
-  window.addEventListener('beforeunload', onBeforeUnload)
-  window.addEventListener('keydown', onGlobalKeydown)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('beforeunload', onBeforeUnload)
-  window.removeEventListener('keydown', onGlobalKeydown)
 })
 </script>
 

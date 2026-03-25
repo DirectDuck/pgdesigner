@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed } from 'vue'
+import { useEventListener } from '@vueuse/core'
 import { useCanvasStore } from '@/stores/canvas'
 import { useProjectStore } from '@/stores/project'
 import { useUiStore } from '@/stores/ui'
@@ -40,8 +41,7 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
-onMounted(() => document.addEventListener('keydown', onKeydown))
-onUnmounted(() => document.removeEventListener('keydown', onKeydown))
+useEventListener(document, 'keydown', onKeydown)
 </script>
 
 <template>

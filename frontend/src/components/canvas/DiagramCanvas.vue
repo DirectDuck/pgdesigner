@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, watch, ref, nextTick } from 'vue'
+import { useDebounceFn, watchDebounced } from '@vueuse/core'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import type { Node, Edge } from '@vue-flow/core'
@@ -158,12 +159,12 @@ function onNodesInitialized() {
 }
 
 // Rebuild edges when schema changes (table/FK added/removed)
-watch(() => store.schema, () => {
-  if (edgesBuilt) setTimeout(buildEdges, 200)
-})
-watch(() => canvasStore.activeSchema, () => {
-  if (edgesBuilt) setTimeout(buildEdges, 150)
-})
+watchDebounced(() => store.schema, () => {
+  if (edgesBuilt) buildEdges()
+}, { debounce: 200 })
+watchDebounced(() => canvasStore.activeSchema, () => {
+  if (edgesBuilt) buildEdges()
+}, { debounce: 150 })
 
 // Toolbar actions
 watch(() => canvasStore.pendingAction, (action) => {
@@ -185,7 +186,7 @@ function onNodeDrag() {
   buildEdges()
 }
 
-let layoutTimer: ReturnType<typeof setTimeout> | null = null
+const debouncedSaveLayout = useDebounceFn(saveLayout, 500)
 
 function onNodeDragStop() {
   if (!store.schema) return
@@ -197,8 +198,7 @@ function onNodeDragStop() {
     }
   }
   buildEdges()
-  if (layoutTimer) clearTimeout(layoutTimer)
-  layoutTimer = setTimeout(() => saveLayout(), 500)
+  debouncedSaveLayout()
 }
 
 function saveLayout() {

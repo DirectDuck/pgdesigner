@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, useTemplateRef } from 'vue'
+import { useEventListener } from '@vueuse/core'
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'reka-ui'
 import { useUiStore } from '@/stores/ui'
 import { useEditorStore } from '@/stores/editor'
@@ -129,7 +130,7 @@ function onColumnPropUpdate(index: number, field: string, value: string | number
   }
 }
 
-const gridRef = ref<InstanceType<typeof ColumnGrid> | null>(null)
+const gridRef = useTemplateRef<InstanceType<typeof ColumnGrid>>('gridRef')
 
 function onAddColumn() {
   if (!editor.draft) return
@@ -268,8 +269,7 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
-onMounted(() => document.addEventListener('keydown', onKeydown))
-onUnmounted(() => document.removeEventListener('keydown', onKeydown))
+useEventListener(document, 'keydown', onKeydown)
 </script>
 
 <template>
@@ -366,7 +366,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 
         <div v-if="editor.serverErrors.length" class="dlg-errors">
           <span v-for="(err, i) in editor.serverErrors" :key="i" class="dlg-error-msg">{{ err }}</span>
-          <button class="dlg-error-close" @click="editor.serverErrors = []">x</button>
+          <button class="dlg-error-close" @click="editor.clearServerErrors()">x</button>
         </div>
 
         <div class="dlg-footer">

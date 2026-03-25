@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, nextTick, watch, onMounted } from 'vue'
+import { ref, nextTick, watch, onMounted, useTemplateRef } from 'vue'
 import type { IColumnDetail } from '@/api/factory'
 import { useEditorStore } from '@/stores/editor'
 import TypeAutocomplete from './TypeAutocomplete.vue'
@@ -29,7 +29,7 @@ type NavCol = typeof NAV_COLS[number]
 const editCell = ref<{ row: number; col: string } | null>(null)
 const editValue = ref('')
 const focusCol = ref<NavCol>('name')
-const tableRef = ref<HTMLElement>()
+const tableRef = useTemplateRef<HTMLElement>('tableRef')
 
 // Sync focused row with selected
 watch(() => props.selected, (v) => {
@@ -266,7 +266,7 @@ defineExpose({ editName })
       </thead>
       <tbody>
         <tr
-          v-for="(col, i) in columns" :key="i"
+          v-for="(col, i) in columns" :key="col.name || i"
           :class="{ 'row-selected': selected === i }"
           @click="emit('select', i)"
         >

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, nextTick, useTemplateRef } from 'vue'
+import { whenever } from '@vueuse/core'
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'reka-ui'
 import { useProjectStore } from '@/stores/project'
 import { useUiStore } from '@/stores/ui'
@@ -13,17 +14,15 @@ const mode = ref<'file' | 'dsn'>('file')
 const filePath = ref('')
 const dsn = ref('')
 const loading = ref(false)
-const fileInputRef = ref<HTMLInputElement>()
-const dsnInputRef = ref<HTMLInputElement>()
+const fileInputRef = useTemplateRef<HTMLInputElement>('fileInputRef')
+const dsnInputRef = useTemplateRef<HTMLInputElement>('dsnInputRef')
 
-watch(() => ui.openDialogOpen, (open) => {
-  if (open) {
-    filePath.value = ''
-    dsn.value = ''
-    mode.value = 'file'
-    loading.value = false
-    nextTick(() => fileInputRef.value?.focus())
-  }
+whenever(() => ui.openDialogOpen, () => {
+  filePath.value = ''
+  dsn.value = ''
+  mode.value = 'file'
+  loading.value = false
+  nextTick(() => fileInputRef.value?.focus())
 })
 
 function selectMode(m: 'file' | 'dsn') {

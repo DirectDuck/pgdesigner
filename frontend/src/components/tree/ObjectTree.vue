@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick } from 'vue'
+import { onClickOutside } from '@vueuse/core'
 import { useProjectStore } from '@/stores/project'
 import { useCanvasStore } from '@/stores/canvas'
 import { useUiStore } from '@/stores/ui'
@@ -107,6 +108,7 @@ async function deleteSchema(name: string) {
 
 // --- Move Table (context menu) ---
 const contextMenu = ref<{ x: number; y: number; table: string; schema: string } | null>(null)
+const contextMenuRef = ref<HTMLElement>()
 
 function showContextMenu(e: MouseEvent, tableName: string, currentSchema: string) {
   const others = (store.info?.schemas || []).filter(s => s !== currentSchema)
@@ -118,9 +120,7 @@ function closeContextMenu() {
   contextMenu.value = null
 }
 
-function onDocClick() { closeContextMenu() }
-onMounted(() => document.addEventListener('click', onDocClick))
-onUnmounted(() => document.removeEventListener('click', onDocClick))
+onClickOutside(contextMenuRef, closeContextMenu)
 
 const moveTargets = computed(() => {
   if (!contextMenu.value) return []
@@ -281,7 +281,7 @@ function onRenameKeydown(e: KeyboardEvent) {
 
     <!-- Context menu for Move to Schema -->
     <Teleport to="body">
-      <div v-if="contextMenu && moveTargets.length" class="tree-context-menu" :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }" @mouseleave="closeContextMenu">
+      <div v-if="contextMenu && moveTargets.length" ref="contextMenuRef" class="tree-context-menu" :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }" @mouseleave="closeContextMenu">
         <div class="tree-context-label">Move to schema:</div>
         <div v-for="s in moveTargets" :key="s" class="tree-context-item" @click="moveTableTo(s)">{{ s }}</div>
       </div>

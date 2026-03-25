@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
+import { useClipboard, whenever } from '@vueuse/core'
 import { DialogRoot, DialogOverlay, DialogContent, DialogTitle, DialogClose } from 'reka-ui'
 import { useProjectStore } from '@/stores/project'
 import { useUiStore } from '@/stores/ui'
@@ -7,25 +8,20 @@ import SqlViewer from './SqlViewer.vue'
 
 const store = useProjectStore()
 const ui = useUiStore()
-const copied = ref(false)
+const { copy, copied } = useClipboard({ copiedDuring: 2000 })
 
 const isOpen = computed(() => ui.activeDialog === 'ddl')
 
-watch(isOpen, (open) => {
-  if (open && !store.ddl) {
-    store.loadDDL()
-  }
-  copied.value = false
+whenever(isOpen, () => {
+  if (!store.ddl) store.loadDDL()
 })
 
 function close() {
   ui.closeDialog()
 }
 
-async function copyDDL() {
-  await navigator.clipboard.writeText(store.ddl)
-  copied.value = true
-  setTimeout(() => { copied.value = false }, 2000)
+function copyDDL() {
+  copy(store.ddl)
 }
 
 function downloadSQL() {

@@ -13,10 +13,12 @@ const store = useProjectStore()
 const form = ref<IProjectSettings | null>(null)
 const saving = ref(false)
 
-watch(() => props.open, async (v) => {
-  if (v) {
-    form.value = { ...await api.project.getProjectSettings() }
-  }
+watch(() => props.open, async (v, _old, onCleanup) => {
+  if (!v) return
+  let cancelled = false
+  onCleanup(() => { cancelled = true })
+  const data = await api.project.getProjectSettings()
+  if (!cancelled) form.value = { ...data }
 })
 
 async function save() {

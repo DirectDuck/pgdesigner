@@ -1,5 +1,6 @@
-import { ref, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
+import { useDark, useToggle } from '@vueuse/core'
 
 export type DialogType = 'ddl' | 'lint' | 'diff' | 'testdata' | null
 export type Theme = 'light' | 'dark'
@@ -19,20 +20,13 @@ export const useUiStore = defineStore('ui', () => {
   const openDialogOpen = ref(false)
 
   // Theme
-  const theme = ref<Theme>(
-    (localStorage.getItem('pgd-theme') as Theme) || 'light',
-  )
-
-  function toggleTheme() {
-    theme.value = theme.value === 'light' ? 'dark' : 'light'
-  }
-
-  function applyTheme() {
-    document.documentElement.classList.toggle('dark', theme.value === 'dark')
-    localStorage.setItem('pgd-theme', theme.value)
-  }
-
-  watch(theme, applyTheme, { immediate: true })
+  const isDark = useDark({ storageKey: 'pgd-theme' })
+  const toggleDark = useToggle(isDark)
+  const theme = computed<Theme>({
+    get: () => isDark.value ? 'dark' : 'light',
+    set: (v) => { isDark.value = v === 'dark' },
+  })
+  function toggleTheme() { toggleDark() }
 
   function openDDL() { activeDialog.value = 'ddl' }
   function openLint() { activeDialog.value = 'lint' }

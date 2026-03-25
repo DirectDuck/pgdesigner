@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useClipboard } from '@vueuse/core'
 import { DialogRoot, DialogOverlay, DialogContent, DialogTitle, DialogClose } from 'reka-ui'
 import { useUiStore } from '@/stores/ui'
 import type { IDiffUnsavedResult } from '@/api/factory'
@@ -9,23 +10,22 @@ import SqlViewer from './SqlViewer.vue'
 const ui = useUiStore()
 const result = ref<IDiffUnsavedResult | null>(null)
 const loading = ref(false)
-const copied = ref(false)
+const { copy, copied } = useClipboard({ copiedDuring: 2000 })
 
 const isOpen = computed(() => ui.activeDialog === 'diff')
 
-watch(isOpen, async (open) => {
-  if (open) {
-    loading.value = true
-    copied.value = false
-    try {
-      result.value = await api.project.diffUnsaved()
-    } catch {
-      result.value = null
-    } finally {
-      loading.value = false
-    }
-  } else {
-    result.value = null
+watch(isOpen, async (open, _old, onCleanup) => {
+  if (!open) { result.value = null; return }
+  let cancelled = false
+  onCleanup(() => { cancelled = true })
+  loading.value = true
+  try {
+    const data = await api.project.diffUnsaved()
+    if (!cancelled) result.value = data
+  } catch {
+    if (!cancelled) result.value = null
+  } finally {
+    if (!cancelled) loading.value = false
   }
 })
 
@@ -40,11 +40,9 @@ const hazardCount = computed(() => {
   return n
 })
 
-async function copySQL() {
+function copySQL() {
   if (!result.value?.sql) return
-  await navigator.clipboard.writeText(result.value.sql)
-  copied.value = true
-  setTimeout(() => { copied.value = false }, 2000)
+  copy(result.value.sql)
 }
 
 const actionClass: Record<string, string> = { add: 'act-add', drop: 'act-drop', alter: 'act-alter' }
