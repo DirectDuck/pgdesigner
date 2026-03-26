@@ -1,5 +1,6 @@
 /* Code generated from jsonrpc schema by rpcgen v2.5.x with typescript v1.0.0; DO NOT EDIT. */
 /* eslint-disable */
+// @ts-nocheck
 export interface IAboutInfo {
   name: string,
   description: string,
@@ -12,6 +13,26 @@ export interface IAboutInfo {
   github: string
 }
 
+export interface IAppDismissUpdateParams {
+  version: string
+}
+
+export interface IAppImportDSNParams {
+  dsn: string,
+  schemas: Array<string>,
+  tables: Array<string>,
+  categories: Array<string>
+}
+
+export interface IAppIntrospectDSNParams {
+  dsn: string
+}
+
+export interface IAppListDirectoryParams {
+  path: string,
+  showAll: boolean
+}
+
 export interface IAppOpenDemoParams {
   name: string
 }
@@ -22,6 +43,10 @@ export interface IAppOpenFileParams {
 
 export interface IAppRegisterParams {
   email: string
+}
+
+export interface IAppRemoveRecentFileParams {
+  path: string
 }
 
 export interface IAppRunDiffExampleParams {
@@ -76,6 +101,47 @@ export interface IColumnInput {
   collation: string
 }
 
+export interface IDSNObjectPreview {
+  name: string,
+  schema: string
+}
+
+export interface IDSNPreview {
+  database: string,
+  pgVersion: string,
+  schemas: Array<IDSNSchemaPreview>,
+  views: Array<IDSNObjectPreview>,
+  matViews: Array<IDSNObjectPreview>,
+  functions: Array<IDSNObjectPreview>,
+  triggers: Array<IDSNObjectPreview>,
+  enums: Array<IDSNObjectPreview>,
+  domains: Array<IDSNObjectPreview>,
+  sequences: Array<IDSNObjectPreview>,
+  extensions: Array<IDSNObjectPreview>,
+  roles: Array<IDSNRolePreview>,
+  grants: number,
+  defaultPrivileges: number
+}
+
+export interface IDSNRolePreview {
+  name: string,
+  login: boolean,
+  members: number
+}
+
+export interface IDSNSchemaPreview {
+  name: string,
+  tables: Array<IDSNTablePreview>
+}
+
+export interface IDSNTablePreview {
+  name: string,
+  columns: number,
+  indexes: number,
+  fks: number,
+  partitioned: boolean
+}
+
 export interface IDemoSchema {
   name: string,
   title: string,
@@ -98,6 +164,17 @@ export interface IDiffExample {
   description: string
 }
 
+export interface IDiffHazard {
+  level: string, // dangerous, warning, info
+  code: string, // DELETES_DATA, TABLE_REWRITE, etc.
+  message: string
+}
+
+export interface IDiffUnsavedResult {
+  changes: Array<IDiffChange>,
+  sql: string // full ALTER script
+}
+
 export interface IDirEntry {
   name: string,
   isDir: boolean,
@@ -109,86 +186,6 @@ export interface IDirEntry {
 export interface IDirectoryListing {
   path: string,
   entries: Array<IDirEntry>
-}
-
-export interface IRecentFile {
-  path: string,
-  name: string,
-  size: number,
-  modTime: string,
-  exists: boolean
-}
-
-export interface IAppListDirectoryParams {
-  path: string,
-  showAll: boolean
-}
-
-export interface IAppRemoveRecentFileParams {
-  path: string
-}
-
-export interface IAppIntrospectDSNParams {
-  dsn: string
-}
-
-export interface IAppImportDSNParams {
-  dsn: string,
-  schemas: Array<string>,
-  tables: Array<string>,
-  categories: Array<string>
-}
-
-export interface IDSNPreview {
-  database: string,
-  pgVersion: string,
-  schemas: Array<IDSNSchemaPreview>,
-  views: Array<IDSNObjectPreview>,
-  matViews: Array<IDSNObjectPreview>,
-  functions: Array<IDSNObjectPreview>,
-  triggers: Array<IDSNObjectPreview>,
-  enums: Array<IDSNObjectPreview>,
-  domains: Array<IDSNObjectPreview>,
-  sequences: Array<IDSNObjectPreview>,
-  extensions: Array<IDSNObjectPreview>,
-  roles: Array<IDSNRolePreview>,
-  grants: number,
-  defaultPrivileges: number
-}
-
-export interface IDSNSchemaPreview {
-  name: string,
-  tables: Array<IDSNTablePreview>
-}
-
-export interface IDSNTablePreview {
-  name: string,
-  columns: number,
-  indexes: number,
-  fks: number,
-  partitioned: boolean
-}
-
-export interface IDSNObjectPreview {
-  name: string,
-  schema: string
-}
-
-export interface IDSNRolePreview {
-  name: string,
-  login: boolean,
-  members: number
-}
-
-export interface IDiffHazard {
-  level: string, // dangerous, warning, info
-  code: string, // DELETES_DATA, TABLE_REWRITE, etc.
-  message: string
-}
-
-export interface IDiffUnsavedResult {
-  changes: Array<IDiffChange>,
-  sql: string // full ALTER script
 }
 
 export interface IERDColumn {
@@ -514,6 +511,14 @@ export interface IProjectUpdateTableParams {
   partitions: Array<IPartitionRPC>
 }
 
+export interface IRecentFile {
+  path: string,
+  name: string,
+  size: number,
+  modTime: string,
+  exists: boolean
+}
+
 export interface ITableDetail {
   name: string,
   schema: string,
@@ -550,6 +555,14 @@ export interface IUniqueInput {
   nullsDistinct: boolean
 }
 
+export interface IUpdateInfo {
+  currentVersion: string,
+  latestVersion: string,
+  updateAvailable: boolean,
+  releaseURL: string,
+  shouldNotify: boolean
+}
+
 export const factory = (send: any) => ({
   app: {
     /**
@@ -559,10 +572,23 @@ export const factory = (send: any) => ({
       return send('app.About')
     },
     /**
+     * CheckForUpdate checks GitHub Releases for a newer version of PgDesigner.
+Results are cached for 24 hours. Safe to call in read-only mode.
+     */
+    checkForUpdate(): Promise<IUpdateInfo> {
+      return send('app.CheckForUpdate')
+    },
+    /**
      * CloseProject replaces current project with empty one (returns to welcome screen).
      */
     closeProject(): Promise<boolean> {
       return send('app.CloseProject')
+    },
+    /**
+     * DismissUpdate records that the user has dismissed the update notification for the given version.
+     */
+    dismissUpdate(params: IAppDismissUpdateParams): Promise<boolean> {
+      return send('app.DismissUpdate', params)
     },
     /**
      * GetHomePath returns the user's home directory path.
@@ -577,10 +603,22 @@ export const factory = (send: any) => ({
       return send('app.GetRecentFiles')
     },
     /**
-     * GetRecentFilesInfo returns recent files with metadata.
+     * GetRecentFilesInfo returns recent files with metadata (size, mod time, exists).
      */
     getRecentFilesInfo(): Promise<Array<IRecentFile>> {
       return send('app.GetRecentFilesInfo')
+    },
+    /**
+     * ImportDSN imports schema from PostgreSQL with filtering options.
+     */
+    importDSN(params: IAppImportDSNParams): Promise<boolean> {
+      return send('app.ImportDSN', params)
+    },
+    /**
+     * IntrospectDSN connects to a PostgreSQL database and returns a preview of available objects.
+     */
+    introspectDSN(params: IAppIntrospectDSNParams): Promise<IDSNPreview> {
+      return send('app.IntrospectDSN', params)
     },
     /**
      * ListDemoSchemas returns available embedded demo schemas.
@@ -596,6 +634,8 @@ export const factory = (send: any) => ({
     },
     /**
      * ListDirectory lists files and subdirectories at the given path.
+Returns entries sorted: directories first (alphabetical), then files (alphabetical).
+Hidden files (starting with .) are excluded.
      */
     listDirectory(params: IAppListDirectoryParams): Promise<IDirectoryListing> {
       return send('app.ListDirectory', params)
@@ -651,18 +691,6 @@ zenrpc
      */
     runDiffExample(params: IAppRunDiffExampleParams): Promise<IDiffUnsavedResult> {
       return send('app.RunDiffExample', params)
-    },
-    /**
-     * IntrospectDSN connects to PostgreSQL and returns a preview of available objects.
-     */
-    introspectDSN(params: IAppIntrospectDSNParams): Promise<IDSNPreview> {
-      return send('app.IntrospectDSN', params)
-    },
-    /**
-     * ImportDSN imports schema from PostgreSQL with filtering options.
-     */
-    importDSN(params: IAppImportDSNParams): Promise<boolean> {
-      return send('app.ImportDSN', params)
     }
   },
   project: {

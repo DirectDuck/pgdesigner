@@ -119,6 +119,7 @@ onMounted(() => {
   // Cancel any pending quit from a previous beforeunload (e.g. Ctrl+R reload).
   api.app.ping().catch(() => {})
   store.loadAll()
+  ui.checkForUpdate()
 })
 </script>
 
@@ -172,11 +173,18 @@ onMounted(() => {
           <span v-else-if="store.dirty" class="sb-modified">Modified *</span>
           <span v-else class="sb-saved">Saved ✓</span>
           <span v-if="store.lastSaved" class="sb-muted sb-time" :data-t="_tick" :title="store.lastSaved.toLocaleString()">{{ timeAgo(store.lastSaved) }}</span>
+          <template v-if="ui.updateInfo?.updateAvailable && !ui.updateDismissed">
+            <span class="sb-sep" />
+            <a :href="ui.updateInfo.releaseURL" target="_blank" rel="noopener noreferrer" class="sb-update" :title="`Update available: ${ui.updateInfo.latestVersion}`" @click="ui.dismissUpdate()">&#8593; {{ ui.updateInfo.latestVersion }}</a>
+          </template>
         </template>
       </div>
     </div>
     <div v-else class="statusbar">
       <span class="sb-muted">PgDesigner</span>
+      <span v-if="ui.updateInfo?.updateAvailable && !ui.updateDismissed" class="sb-update-welcome">
+        <a :href="ui.updateInfo.releaseURL" target="_blank" rel="noopener noreferrer" class="sb-update" :title="`Update available: ${ui.updateInfo.latestVersion}`" @click="ui.dismissUpdate()">&#8593; {{ ui.updateInfo.latestVersion }} available</a>
+      </span>
     </div>
 
     <GenerateDDLDialog />
@@ -225,6 +233,12 @@ onMounted(() => {
 .sb-saved { color: #4a4; }
 .sb-modified { color: #ca3; }
 .sb-time { font-size: 0.692rem; }
+.sb-update {
+  color: var(--color-accent); font-weight: 600; text-decoration: none; cursor: pointer;
+  border: 1px solid var(--color-accent); padding: 0 0.308rem; border-radius: 2px; font-size: 0.692rem;
+}
+.sb-update:hover { opacity: 0.8; }
+.sb-update-welcome { margin-left: auto; }
 .export-overlay {
   position: fixed; inset: 0; z-index: 100;
   background: rgba(0, 0, 0, 0.5);

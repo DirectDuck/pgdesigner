@@ -376,6 +376,15 @@ type RecentFile struct {
 	Exists  bool   `json:"exists"`
 }
 
+// UpdateInfo holds the result of an update check.
+type UpdateInfo struct {
+	CurrentVersion  string `json:"currentVersion"`
+	LatestVersion   string `json:"latestVersion"`
+	UpdateAvailable bool   `json:"updateAvailable"`
+	ReleaseURL      string `json:"releaseURL"`
+	ShouldNotify    bool   `json:"shouldNotify"`
+}
+
 // TypeInfo describes a type available for column autocomplete.
 type TypeInfo struct {
 	Name     string `json:"name"`

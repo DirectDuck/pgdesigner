@@ -50,6 +50,7 @@ var blockedMethods = map[string]bool{
 	RPC.AppService.CloseProject:       true, // shared state mutation
 	RPC.AppService.IntrospectDSN:      true, // DB connection from server
 	RPC.AppService.ImportDSN:          true, // DB connection + state mutation
+	RPC.AppService.DismissUpdate:      true, // writes to disk
 }
 
 // readOnlyMiddleware blocks write methods in read-only mode.

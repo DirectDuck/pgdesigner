@@ -3,6 +3,7 @@ import { ref, computed, useTemplateRef, watch, onMounted } from 'vue'
 import api from '@/api/factory'
 import type { IDirEntry } from '@/api/factory'
 import { showToast } from '@/composables/useToast'
+import { formatSize } from '@/utils/format'
 
 const props = withDefaults(defineProps<{
   initialDir?: string
@@ -190,12 +191,6 @@ function navigateList(delta: number) {
   }
 }
 
-function formatSize(bytes: number): string {
-  if (bytes < 0) return ''
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-}
 
 function formatModTime(isoDate: string): string {
   if (!isoDate) return ''

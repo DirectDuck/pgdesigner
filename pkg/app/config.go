@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 const (
@@ -15,8 +16,11 @@ const (
 
 // Config holds application-level settings stored in ~/.config/pgdesigner/config.json.
 type Config struct {
-	RegisteredEmail string   `json:"registeredEmail,omitempty"`
-	RecentFiles     []string `json:"recentFiles,omitempty"`
+	RegisteredEmail     string    `json:"registeredEmail,omitempty"`
+	RecentFiles         []string  `json:"recentFiles,omitempty"`
+	LastUpdateCheck     time.Time `json:"lastUpdateCheck,omitempty"`
+	CachedLatestVersion string    `json:"cachedLatestVersion,omitempty"`
+	DismissedVersion    string    `json:"dismissedVersion,omitempty"`
 }
 
 // configPath returns the full path to the config file.

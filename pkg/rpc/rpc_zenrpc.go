@@ -11,10 +11,10 @@ import (
 )
 
 var RPC = struct {
-	AppService     struct{ Quit, Ping, About, ListDemoSchemas, OpenDemo, OpenFile, NewProject, CloseProject, Register, GetRecentFiles, GetHomePath, ListDirectory, RemoveRecentFile, GetRecentFilesInfo, ListDiffExamples, RunDiffExample, IntrospectDSN, ImportDSN string }
+	AppService     struct{ Quit, Ping, About, ListDemoSchemas, OpenDemo, OpenFile, NewProject, CloseProject, Register, GetRecentFiles, GetHomePath, ListDirectory, RemoveRecentFile, GetRecentFilesInfo, ListDiffExamples, RunDiffExample, CheckForUpdate, DismissUpdate, IntrospectDSN, ImportDSN string }
 	ProjectService struct{ GetInfo, GetSchema, GetDDL, GenerateTestData, Lint, ListObjects, GetTable, SaveProject, SaveProjectAs, SaveLayout, IsDirty, GetAutoSave, SetAutoSave, ListTypes, UpdateTable, PreviewDiff, DiffUnsaved, FixLintIssues, IgnoreLintRules, GetIgnoredRules, UnignoreLintRules, CreateTable, DeleteTable, CreateSchema, DeleteSchema, MoveTable, GetProjectSettings, UpdateProjectSettings, LintTable, Singularize string }
 }{
-	AppService: struct{ Quit, Ping, About, ListDemoSchemas, OpenDemo, OpenFile, NewProject, CloseProject, Register, GetRecentFiles, GetHomePath, ListDirectory, RemoveRecentFile, GetRecentFilesInfo, ListDiffExamples, RunDiffExample, IntrospectDSN, ImportDSN string }{
+	AppService: struct{ Quit, Ping, About, ListDemoSchemas, OpenDemo, OpenFile, NewProject, CloseProject, Register, GetRecentFiles, GetHomePath, ListDirectory, RemoveRecentFile, GetRecentFilesInfo, ListDiffExamples, RunDiffExample, CheckForUpdate, DismissUpdate, IntrospectDSN, ImportDSN string }{
 		Quit:               "quit",
 		Ping:               "ping",
 		About:              "about",
@@ -31,6 +31,8 @@ var RPC = struct {
 		GetRecentFilesInfo: "getrecentfilesinfo",
 		ListDiffExamples:   "listdiffexamples",
 		RunDiffExample:     "rundiffexample",
+		CheckForUpdate:     "checkforupdate",
+		DismissUpdate:      "dismissupdate",
 		IntrospectDSN:      "introspectdsn",
 		ImportDSN:          "importdsn",
 	},
@@ -482,6 +484,53 @@ Hidden files (starting with .) are excluded.`,
 					},
 				},
 			},
+			"CheckForUpdate": {
+				Description: `CheckForUpdate checks GitHub Releases for a newer version of PgDesigner.
+Results are cached for 24 hours. Safe to call in read-only mode.`,
+				Parameters: []smd.JSONSchema{},
+				Returns: smd.JSONSchema{
+					Description: `UpdateInfo`,
+					Optional:    true,
+					Type:        smd.Object,
+					TypeName:    "UpdateInfo",
+					Properties: smd.PropertyList{
+						{
+							Name: "currentVersion",
+							Type: smd.String,
+						},
+						{
+							Name: "latestVersion",
+							Type: smd.String,
+						},
+						{
+							Name: "updateAvailable",
+							Type: smd.Boolean,
+						},
+						{
+							Name: "releaseURL",
+							Type: smd.String,
+						},
+						{
+							Name: "shouldNotify",
+							Type: smd.Boolean,
+						},
+					},
+				},
+			},
+			"DismissUpdate": {
+				Description: `DismissUpdate records that the user has dismissed the update notification for the given version.`,
+				Parameters: []smd.JSONSchema{
+					{
+						Name:        "version",
+						Description: `version string to dismiss (e.g. "v0.2.0")`,
+						Type:        smd.String,
+					},
+				},
+				Returns: smd.JSONSchema{
+					Description: `bool`,
+					Type:        smd.Boolean,
+				},
+			},
 			"IntrospectDSN": {
 				Description: `IntrospectDSN connects to a PostgreSQL database and returns a preview of available objects.`,
 				Parameters: []smd.JSONSchema{
@@ -854,6 +903,28 @@ func (s AppService) Invoke(ctx context.Context, method string, params json.RawMe
 		}
 
 		resp.Set(s.RunDiffExample(args.Name))
+
+	case RPC.AppService.CheckForUpdate:
+		resp.Set(s.CheckForUpdate())
+
+	case RPC.AppService.DismissUpdate:
+		var args = struct {
+			Version string `json:"version"`
+		}{}
+
+		if zenrpc.IsArray(params) {
+			if params, err = zenrpc.ConvertToObject([]string{"version"}, params); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &args); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		resp.Set(s.DismissUpdate(args.Version))
 
 	case RPC.AppService.IntrospectDSN:
 		var args = struct {

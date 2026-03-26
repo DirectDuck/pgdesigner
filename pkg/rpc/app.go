@@ -20,6 +20,8 @@ type ConfigCallbacks struct {
 	GetRecentFiles   func() []string
 	AddRecentFile    func(path string) error
 	RemoveRecentFile func(path string) error
+	CheckUpdate      func(currentVersion string) UpdateInfo
+	DismissVersion   func(version string) error
 }
 
 // AppService provides application lifecycle methods.
@@ -262,6 +264,38 @@ func (s *AppService) RunDiffExample(name string) (*DiffUnsavedResult, error) {
 		SQL:     result.SQL,
 		Changes: NewDiffChanges(result.Changes),
 	}, nil
+}
+
+// CheckForUpdate checks GitHub Releases for a newer version of PgDesigner.
+// Results are cached for 24 hours. Safe to call in read-only mode.
+//
+//zenrpc:return UpdateInfo
+func (s *AppService) CheckForUpdate() *UpdateInfo {
+	if s.config.CheckUpdate == nil {
+		return nil
+	}
+	result := s.config.CheckUpdate(s.version)
+	return &UpdateInfo{
+		CurrentVersion:  result.CurrentVersion,
+		LatestVersion:   result.LatestVersion,
+		UpdateAvailable: result.UpdateAvailable,
+		ReleaseURL:      result.ReleaseURL,
+		ShouldNotify:    result.ShouldNotify,
+	}
+}
+
+// DismissUpdate records that the user has dismissed the update notification for the given version.
+//
+//zenrpc:version version string to dismiss (e.g. "v0.2.0")
+//zenrpc:return bool
+func (s *AppService) DismissUpdate(version string) (bool, error) {
+	if s.config.DismissVersion == nil {
+		return false, errors.New("config not available")
+	}
+	if err := s.config.DismissVersion(version); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // IntrospectDSN connects to a PostgreSQL database and returns a preview of available objects.

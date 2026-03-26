@@ -1,6 +1,8 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useDark, useToggle } from '@vueuse/core'
+import api from '@/api/factory'
+import type { IUpdateInfo } from '@/api/factory'
 
 export type DialogType = 'ddl' | 'lint' | 'diff' | 'testdata' | null
 export type Theme = 'light' | 'dark'
@@ -18,6 +20,25 @@ export const useUiStore = defineStore('ui', () => {
   const exporting = ref(false)
   const isWelcome = ref(false)
   const openDialogOpen = ref(false)
+
+  // Update checker
+  const updateInfo = ref<IUpdateInfo | null>(null)
+  const updateDismissed = ref(false)
+
+  async function checkForUpdate() {
+    try {
+      const result = await api.app.checkForUpdate()
+      if (result) updateInfo.value = result
+    } catch { /* silently ignore — update check is best-effort */ }
+  }
+
+  async function dismissUpdate() {
+    if (!updateInfo.value?.latestVersion) return
+    try {
+      await api.app.dismissUpdate({ version: updateInfo.value.latestVersion })
+      updateDismissed.value = true
+    } catch { /* ignore */ }
+  }
 
   // Theme
   const isDark = useDark({ storageKey: 'pgd-theme' })
@@ -49,8 +70,9 @@ export const useUiStore = defineStore('ui', () => {
 
   return {
     activeDialog, tableEditorName, tableEditorTab, tableEditorFocusFK, tableEditorFocusItem, theme, goToOpen, keyboardRefOpen, aboutOpen, settingsOpen, exporting, isWelcome, openDialogOpen,
+    updateInfo, updateDismissed,
     openDDL, openLint, openDiff, openTestData, closeDialog,
     openTableEditor, closeTableEditor,
-    toggleTheme,
+    toggleTheme, checkForUpdate, dismissUpdate,
   }
 })

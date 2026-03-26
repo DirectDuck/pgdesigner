@@ -51,4 +51,5 @@ export type {
   IDSNTablePreview,
   IDSNObjectPreview,
   IDSNRolePreview,
+  IUpdateInfo,
 } from './factory.generated'
