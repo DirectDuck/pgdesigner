@@ -96,6 +96,10 @@ export const useProjectStore = defineStore('project', () => {
   }
 
   async function saveProject() {
+    if (!info.value?.filePath) {
+      showToast('Use Save As (⌘⇧S) to save a new project', 'error')
+      return
+    }
     saveStatus.value = 'saving'
     try {
       await api.project.saveProject()
@@ -104,7 +108,7 @@ export const useProjectStore = defineStore('project', () => {
       dirty.value = false
     } catch (e) {
       saveStatus.value = 'error'
-      error.value = e instanceof Error ? e.message : String(e)
+      showToast(e instanceof Error ? e.message : String(e), 'error')
     }
   }
 

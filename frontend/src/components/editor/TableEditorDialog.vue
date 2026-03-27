@@ -216,6 +216,28 @@ function onTogglePK(columnName: string) {
   }))
 }
 
+function onGoToIndex(indexName: string) {
+  activeTab.value = 'indexes'
+  ui.tableEditorFocusItem = indexName
+}
+
+function onCreateIndex(columnName: string) {
+  if (!editor.draft) return
+  const tableName = editor.draft.name.replace(/.*\./, '')
+  const name = `ix_${tableName}_${columnName}`
+  if (editor.draft.indexes?.some(ix => ix.name === name)) {
+    onGoToIndex(name)
+    return
+  }
+  const newIndex = {
+    name, unique: false, nullsDistinct: false, using: 'btree',
+    columns: [{ name: columnName, order: '', nulls: '', opclass: '' }], expressions: [], where: '', include: [],
+  }
+  editor.draft.indexes = [...(editor.draft.indexes || []), newIndex]
+  activeTab.value = 'indexes'
+  ui.tableEditorFocusItem = name
+}
+
 function onConstraintPKUpdate(pk: IPKDetail | null) {
   if (!editor.draft) return
   editor.draft.pk = pk ?? undefined
@@ -317,8 +339,12 @@ useEventListener(document, 'keydown', onKeydown)
                 <ColumnProperties
                   :column="editor.draft.columns[selectedCol]!"
                   :index="selectedCol"
+                  :indexes="editor.draft.indexes || []"
+                  :table-name="editor.draft.name.replace(/.*\./, '')"
                   @update="onColumnPropUpdate"
                   @toggle-p-k="onTogglePK"
+                  @go-to-index="onGoToIndex"
+                  @create-index="onCreateIndex"
                 />
               </div>
             </div>

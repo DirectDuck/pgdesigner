@@ -12,7 +12,7 @@ import (
 
 var RPC = struct {
 	AppService     struct{ Quit, Ping, About, ListDemoSchemas, OpenDemo, OpenFile, NewProject, CloseProject, Register, GetRecentFiles, GetHomePath, ListDirectory, RemoveRecentFile, GetRecentFilesInfo, ListDiffExamples, RunDiffExample, CheckForUpdate, DismissUpdate, IntrospectDSN, ImportDSN string }
-	ProjectService struct{ GetInfo, GetSchema, GetDDL, GenerateTestData, Lint, ListObjects, GetTable, SaveProject, SaveProjectAs, SaveTextFile, SaveLayout, IsDirty, GetAutoSave, SetAutoSave, ListTypes, UpdateTable, PreviewDiff, DiffUnsaved, FixLintIssues, IgnoreLintRules, GetIgnoredRules, UnignoreLintRules, CreateTable, DeleteTable, CreateSchema, DeleteSchema, MoveTable, GetProjectSettings, UpdateProjectSettings, LintTable, Singularize string }
+	ProjectService struct{ GetInfo, GetSchema, GetDDL, GetTableDDL, GenerateTestData, Lint, ListObjects, GetTable, SaveProject, SaveProjectAs, SaveTextFile, SaveLayout, IsDirty, GetAutoSave, SetAutoSave, ListTypes, UpdateTable, PreviewDiff, DiffUnsaved, FixLintIssues, IgnoreLintRules, GetIgnoredRules, UnignoreLintRules, CreateTable, DeleteTable, CreateSchema, DeleteSchema, MoveTable, GetProjectSettings, UpdateProjectSettings, LintTable, Singularize string }
 }{
 	AppService: struct{ Quit, Ping, About, ListDemoSchemas, OpenDemo, OpenFile, NewProject, CloseProject, Register, GetRecentFiles, GetHomePath, ListDirectory, RemoveRecentFile, GetRecentFilesInfo, ListDiffExamples, RunDiffExample, CheckForUpdate, DismissUpdate, IntrospectDSN, ImportDSN string }{
 		Quit:               "quit",
@@ -36,10 +36,11 @@ var RPC = struct {
 		IntrospectDSN:      "introspectdsn",
 		ImportDSN:          "importdsn",
 	},
-	ProjectService: struct{ GetInfo, GetSchema, GetDDL, GenerateTestData, Lint, ListObjects, GetTable, SaveProject, SaveProjectAs, SaveTextFile, SaveLayout, IsDirty, GetAutoSave, SetAutoSave, ListTypes, UpdateTable, PreviewDiff, DiffUnsaved, FixLintIssues, IgnoreLintRules, GetIgnoredRules, UnignoreLintRules, CreateTable, DeleteTable, CreateSchema, DeleteSchema, MoveTable, GetProjectSettings, UpdateProjectSettings, LintTable, Singularize string }{
+	ProjectService: struct{ GetInfo, GetSchema, GetDDL, GetTableDDL, GenerateTestData, Lint, ListObjects, GetTable, SaveProject, SaveProjectAs, SaveTextFile, SaveLayout, IsDirty, GetAutoSave, SetAutoSave, ListTypes, UpdateTable, PreviewDiff, DiffUnsaved, FixLintIssues, IgnoreLintRules, GetIgnoredRules, UnignoreLintRules, CreateTable, DeleteTable, CreateSchema, DeleteSchema, MoveTable, GetProjectSettings, UpdateProjectSettings, LintTable, Singularize string }{
 		GetInfo:               "getinfo",
 		GetSchema:             "getschema",
 		GetDDL:                "getddl",
+		GetTableDDL:           "gettableddl",
 		GenerateTestData:      "generatetestdata",
 		Lint:                  "lint",
 		ListObjects:           "listobjects",
@@ -1037,6 +1038,10 @@ func (ProjectService) SMD() smd.ServiceInfo {
 							Name: "filePath",
 							Type: smd.String,
 						},
+						{
+							Name: "workDir",
+							Type: smd.String,
+						},
 					},
 				},
 			},
@@ -1176,6 +1181,20 @@ func (ProjectService) SMD() smd.ServiceInfo {
 			"GetDDL": {
 				Description: `GetDDL returns the full DDL for the project.`,
 				Parameters:  []smd.JSONSchema{},
+				Returns: smd.JSONSchema{
+					Description: `string`,
+					Type:        smd.String,
+				},
+			},
+			"GetTableDDL": {
+				Description: `GetTableDDL returns the DDL for a single table (CREATE TABLE + indexes + FK + comments).`,
+				Parameters: []smd.JSONSchema{
+					{
+						Name:        "name",
+						Description: `table name`,
+						Type:        smd.String,
+					},
+				},
 				Returns: smd.JSONSchema{
 					Description: `string`,
 					Type:        smd.String,
@@ -3626,6 +3645,11 @@ It does NOT modify the project — only computes the diff.`,
 							Description: `Lint`,
 							Type:        smd.String,
 						},
+						{
+							Name:        "autoSaveDDL",
+							Description: `Export`,
+							Type:        smd.String,
+						},
 					},
 				},
 			},
@@ -3679,6 +3703,11 @@ It does NOT modify the project — only computes the diff.`,
 							{
 								Name:        "lintIgnoreRules",
 								Description: `Lint`,
+								Type:        smd.String,
+							},
+							{
+								Name:        "autoSaveDDL",
+								Description: `Export`,
 								Type:        smd.String,
 							},
 						},
@@ -3773,6 +3802,25 @@ func (s ProjectService) Invoke(ctx context.Context, method string, params json.R
 
 	case RPC.ProjectService.GetDDL:
 		resp.Set(s.GetDDL())
+
+	case RPC.ProjectService.GetTableDDL:
+		var args = struct {
+			Name string `json:"name"`
+		}{}
+
+		if zenrpc.IsArray(params) {
+			if params, err = zenrpc.ConvertToObject([]string{"name"}, params); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &args); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		resp.Set(s.GetTableDDL(args.Name))
 
 	case RPC.ProjectService.GenerateTestData:
 		var args = struct {

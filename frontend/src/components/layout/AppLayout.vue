@@ -10,6 +10,7 @@ import { useProjectStore } from '@/stores/project'
 import { useCanvasStore } from '@/stores/canvas'
 import { useUiStore } from '@/stores/ui'
 import api from '@/api/factory'
+import { useFileActions } from '@/composables/useFileActions'
 import MenuBar from './MenuBar.vue'
 import Toolbar from './Toolbar.vue'
 import ObjectTree from '../tree/ObjectTree.vue'
@@ -31,6 +32,7 @@ import ToastContainer from '../ui/ToastContainer.vue'
 const store = useProjectStore()
 const canvasStore = useCanvasStore()
 const ui = useUiStore()
+const { fileNew, fileOpen, fileSaveAs, fileClose } = useFileActions()
 
 // isWelcome is now directly controlled by ui.isWelcome
 // Set by: initial load (auto), MenuBar (fileNew/fileClose), WelcomeScreen
@@ -40,10 +42,33 @@ watch(() => store.info, (info) => {
 }, { immediate: true })
 
 function onGlobalKeydown(e: KeyboardEvent) {
+  // Ctrl+Shift+S — Save As
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 's' || e.key === 'S') && !ui.tableEditorName) {
+    e.preventDefault()
+    fileSaveAs()
+    return
+  }
   // Ctrl+S — save project (when Table Editor is not open)
-  if ((e.metaKey || e.ctrlKey) && e.key === 's' && !ui.tableEditorName) {
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 's' && !ui.tableEditorName) {
     e.preventDefault()
     store.saveProject()
+  }
+  // Ctrl+N — New, Ctrl+O — Open
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'n') {
+    e.preventDefault()
+    fileNew()
+    return
+  }
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'o') {
+    e.preventDefault()
+    fileOpen()
+    return
+  }
+  // Ctrl+W — Close
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'w' && !ui.tableEditorName) {
+    e.preventDefault()
+    fileClose()
+    return
   }
   // Zoom: Ctrl+= / Ctrl+- / Ctrl+0 (only when Table Editor is not open)
   if ((e.metaKey || e.ctrlKey) && !ui.tableEditorName) {
@@ -64,13 +89,20 @@ function onGlobalKeydown(e: KeyboardEvent) {
     e.preventDefault(); ui.settingsOpen = true; return
   }
   // Ctrl+Shift+D — Toggle Dark Theme
-  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'D') {
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
     e.preventDefault(); ui.toggleTheme(); return
   }
   // Escape — reset canvas tool
   if (e.key === 'Escape' && canvasStore.activeTool !== 'pointer' && !ui.tableEditorName) {
     e.preventDefault(); canvasStore.resetTool(); return
   }
+  // Canvas tool hotkeys (T/F/M — toggle tools)
+  if (!e.metaKey && !e.ctrlKey && !ui.tableEditorName && !ui.isWelcome && !isInputFocused()) {
+    if (e.key === 't') { canvasStore.setTool(canvasStore.activeTool === 'createTable' ? 'pointer' : 'createTable'); return }
+    if (e.key === 'f') { canvasStore.setTool(canvasStore.activeTool === 'createFK' ? 'pointer' : 'createFK'); return }
+    if (e.key === 'm') { canvasStore.setTool(canvasStore.activeTool === 'createM2M' ? 'pointer' : 'createM2M'); return }
+  }
+
   // ? — open keyboard reference (only when not typing in an input)
   if (e.key === '?' && !isInputFocused()) {
     e.preventDefault()

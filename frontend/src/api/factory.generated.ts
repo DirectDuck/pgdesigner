@@ -414,6 +414,10 @@ export interface IProjectGenerateTestDataParams {
   rows: number
 }
 
+export interface IProjectGetTableDDLParams {
+  name: string
+}
+
 export interface IProjectGetTableParams {
   name: string
 }
@@ -435,7 +439,8 @@ export interface IProjectInfo {
   isDemo: boolean,
   isReadOnly: boolean,
   isRegistered: boolean,
-  filePath: string
+  filePath: string,
+  workDir: string
 }
 
 export interface IProjectLintTableParams {
@@ -487,7 +492,7 @@ export interface IProjectSettings {
   defaultOnDelete: string,
   defaultOnUpdate: string,
   lintIgnoreRules: string, // Lint
-  autoSaveDDL: string // Export: "true" or "false"
+  autoSaveDDL: string // Export
 }
 
 export interface IProjectSingularizeParams {
@@ -785,6 +790,12 @@ zenrpc
       return send('project.GetTable', params)
     },
     /**
+     * GetTableDDL returns the DDL for a single table (CREATE TABLE + indexes + FK + comments).
+     */
+    getTableDDL(params: IProjectGetTableDDLParams): Promise<string> {
+      return send('project.GetTableDDL', params)
+    },
+    /**
      * IgnoreLintRules adds rules to project or table ignore list.
      */
     ignoreLintRules(params: IProjectIgnoreLintRulesParams): Promise<Array<ILintIssue>> {
@@ -853,6 +864,7 @@ It does NOT modify the project — only computes the diff.
     },
     /**
      * SaveTextFile writes text content to the specified file path.
+Used for saving DDL, diff patches, and other generated text.
      */
     saveTextFile(params: IProjectSaveTextFileParams): Promise<boolean> {
       return send('project.SaveTextFile', params)

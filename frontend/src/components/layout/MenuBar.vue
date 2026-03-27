@@ -15,60 +15,15 @@ import {
   MenubarSeparator,
 } from 'reka-ui'
 
-import api from '@/api/factory'
-import { confirmUnsaved } from '@/composables/useConfirmUnsaved'
-import { appSaveAs } from '@/composables/useSaveDialog'
-import { showToast } from '@/composables/useToast'
+import { useFileActions } from '@/composables/useFileActions'
 
 const store = useProjectStore()
 const ui = useUiStore()
 const canvas = useCanvasStore()
+const { fileNew, fileOpen, fileSaveAs, fileClose } = useFileActions()
 
 const isMac = navigator.platform.includes('Mac')
 const mod = isMac ? '⌘' : 'Ctrl+'
-
-async function fileNew() {
-  if (!await confirmUnsaved()) return
-  try {
-    await api.app.newProject()
-    await store.loadAll()
-    ui.isWelcome = false
-    ui.settingsOpen = true
-  } catch (e: unknown) {
-    showToast('New failed: ' + (e instanceof Error ? e.message : e))
-  }
-}
-
-async function fileOpen() {
-  if (!await confirmUnsaved()) return
-  ui.openDialogOpen = true
-}
-
-async function fileSaveAs() {
-  const name = store.info?.name || 'untitled'
-  const fp = store.info?.filePath || ''
-  const defaultDir = fp && !fp.startsWith('postgres') ? fp.substring(0, fp.lastIndexOf('/')) : ''
-  const defaultName = fp ? fp.substring(fp.lastIndexOf('/') + 1) : `${name}.pgd`
-  const path = await appSaveAs(defaultDir, defaultName)
-  if (!path) return
-  try {
-    await api.project.saveProjectAs({ path })
-    await store.loadAll()
-  } catch (e: unknown) {
-    showToast('Save As failed: ' + (e instanceof Error ? e.message : e))
-  }
-}
-
-async function fileClose() {
-  if (!await confirmUnsaved()) return
-  try {
-    await api.app.closeProject()
-    await store.loadAll()
-    ui.isWelcome = true
-  } catch (e: unknown) {
-    showToast('Close failed: ' + (e instanceof Error ? e.message : e))
-  }
-}
 
 interface MenuItem {
   label: string

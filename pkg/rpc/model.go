@@ -55,6 +55,7 @@ type ProjectInfo struct {
 	IsReadOnly      bool     `json:"isReadOnly"`
 	IsRegistered    bool     `json:"isRegistered"`
 	FilePath        string   `json:"filePath"`
+	WorkDir         string   `json:"workDir"`
 }
 
 // DemoSchema describes an available embedded demo schema.

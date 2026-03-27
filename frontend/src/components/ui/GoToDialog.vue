@@ -29,9 +29,7 @@ whenever(
   async () => {
     query.value = ''
     selectedIndex.value = 0
-    if (!allItems.value.length) {
-      allItems.value = (await api.project.listObjects()) || []
-    }
+    allItems.value = (await api.project.listObjects()) || []
     nextTick(() => inputRef.value?.focus())
   },
 )

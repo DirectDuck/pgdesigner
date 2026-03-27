@@ -133,7 +133,7 @@ whenever(() => ui.openDialogOpen, async () => {
     activeTab.value = (files && files.length > 0) ? 'recent' : 'browse'
 
     if (activeTab.value === 'browse') {
-      browseInitialDir.value = files?.length ? parentDir(files[0]!.path) : ''
+      browseInitialDir.value = files?.length ? parentDir(files[0]!.path) : (store.info?.workDir || '')
     }
   } catch { /* ignore */ }
 })
@@ -146,7 +146,7 @@ function parentDir(path: string): string {
 async function switchTab(tab: Tab) {
   activeTab.value = tab
   if (tab === 'browse' && !browseInitialDir.value) {
-    browseInitialDir.value = recentFiles.value.length ? parentDir(recentFiles.value[0]!.path) : ''
+    browseInitialDir.value = recentFiles.value.length ? parentDir(recentFiles.value[0]!.path) : (store.info?.workDir || '')
   }
   if (tab === 'dsn') {
     nextTick(() => dsnInputRef.value?.focus())

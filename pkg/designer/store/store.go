@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -388,6 +389,9 @@ func (s *ProjectStore) CreateTable(schemaName, tableName string) error {
 	defer s.mu.Unlock()
 	for i := range s.project.Schemas {
 		if s.project.Schemas[i].Name == schemaName {
+			if slices.ContainsFunc(s.project.Schemas[i].Tables, func(t pgd.Table) bool { return t.Name == tableName }) {
+				return fmt.Errorf("table %q already exists in schema %q", tableName, schemaName)
+			}
 			s.project.Schemas[i].Tables = append(s.project.Schemas[i].Tables, pgd.Table{
 				Name: tableName,
 				Columns: []pgd.Column{

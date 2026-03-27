@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue'
 import { useClipboard } from '@vueuse/core'
 import { DialogRoot, DialogOverlay, DialogContent, DialogTitle, DialogClose } from 'reka-ui'
-import { useProjectStore } from '@/stores/project'
 import { useUiStore } from '@/stores/ui'
 import type { IDiffUnsavedResult } from '@/api/factory'
 import api from '@/api/factory'
@@ -10,7 +9,6 @@ import { appSaveAs } from '@/composables/useSaveDialog'
 import { showToast } from '@/composables/useToast'
 import SqlViewer from './SqlViewer.vue'
 
-const store = useProjectStore()
 const ui = useUiStore()
 const result = ref<IDiffUnsavedResult | null>(null)
 const loading = ref(false)
@@ -51,10 +49,8 @@ function copySQL() {
 
 async function saveSQL() {
   if (!result.value?.sql) return
-  const fp = store.info?.filePath || ''
-  const defaultDir = fp ? fp.substring(0, fp.lastIndexOf('/')) : ''
   const defaultName = new Date().toISOString().slice(0, 10) + '.sql'
-  const path = await appSaveAs(defaultDir, defaultName, '.sql')
+  const path = await appSaveAs(undefined, defaultName, '.sql')
   if (!path) return
   try {
     await api.project.saveTextFile({ path, content: result.value.sql })

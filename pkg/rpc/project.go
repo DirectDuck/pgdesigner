@@ -22,16 +22,19 @@ type ProjectService struct {
 	store          *store.ProjectStore // nil for read-only mode
 	isRegisteredFn func() bool         // callback to check registration status
 	addRecentFile  func(path string) error
+	workDir        string
 }
 
 // NewProjectService creates a read-only ProjectService.
 func NewProjectService(project *pgd.Project) *ProjectService {
-	return &ProjectService{project: project}
+	wd, _ := os.Getwd()
+	return &ProjectService{project: project, workDir: wd}
 }
 
 // NewProjectServiceWithStore creates a ProjectService backed by a ProjectStore (read-write).
 func NewProjectServiceWithStore(s *store.ProjectStore, isRegisteredFn func() bool, addRecentFile func(string) error) *ProjectService {
-	return &ProjectService{project: s.Project(), store: s, isRegisteredFn: isRegisteredFn, addRecentFile: addRecentFile}
+	wd, _ := os.Getwd()
+	return &ProjectService{project: s.Project(), store: s, isRegisteredFn: isRegisteredFn, addRecentFile: addRecentFile, workDir: wd}
 }
 
 // getProject returns the current project. When backed by a store, always returns the
@@ -83,6 +86,7 @@ func (s ProjectService) GetInfo() ProjectInfo {
 		IsDemo:          isDemo,
 		IsRegistered:    isRegistered,
 		FilePath:        filePath,
+		WorkDir:         s.workDir,
 	}
 }
 
@@ -98,6 +102,18 @@ func (s ProjectService) GetSchema() ERDSchema {
 //zenrpc:return string
 func (s ProjectService) GetDDL() string {
 	return pgd.GenerateDDL(s.getProject())
+}
+
+// GetTableDDL returns the DDL for a single table (CREATE TABLE + indexes + FK + comments).
+//
+//zenrpc:name table name
+//zenrpc:return string
+func (s ProjectService) GetTableDDL(name string) (string, error) {
+	ddl := pgd.GenerateTableDDL(s.getProject(), name)
+	if ddl == "" {
+		return "", fmt.Errorf("table %q not found", name)
+	}
+	return ddl, nil
 }
 
 // GenerateTestData returns INSERT statements with fake test data.
@@ -217,7 +233,12 @@ func (s ProjectService) SaveLayout(positions []LayoutPosition) (bool, error) {
 		return false, errors.New("read-only mode")
 	}
 	entities := MapV(positions, func(p LayoutPosition) pgd.LayoutEntity {
-		return pgd.LayoutEntity{Table: p.Name, Schema: p.Schema, X: p.X, Y: p.Y}
+		// Strip schema prefix from table name if present (frontend sends qualified names).
+		table := p.Name
+		if p.Schema != "" && strings.HasPrefix(table, p.Schema+".") {
+			table = strings.TrimPrefix(table, p.Schema+".")
+		}
+		return pgd.LayoutEntity{Table: table, Schema: p.Schema, X: p.X, Y: p.Y}
 	})
 	return true, s.store.UpdateLayout(entities)
 }

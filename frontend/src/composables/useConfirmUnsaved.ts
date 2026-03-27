@@ -29,10 +29,8 @@ export async function confirmUnsaved(): Promise<boolean> {
     try {
       if (!store.info?.filePath) {
         // No file path — need Save As
-        const fp = store.info?.filePath || ''
-        const defaultDir = fp ? fp.substring(0, fp.lastIndexOf('/')) : ''
         const defaultName = `${name}.pgd`
-        const path = await appSaveAs(defaultDir, defaultName)
+        const path = await appSaveAs(undefined, defaultName)
         if (!path) return false
         await api.project.saveProjectAs({ path })
       } else {
