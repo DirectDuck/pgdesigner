@@ -27,6 +27,7 @@ brews:
   - repository:
       owner: vmkteam
       name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Formula
     homepage: "https://pgdesigner.io"
     description: "PostgreSQL schema designer — ERD, linting, diffing, sample data"
