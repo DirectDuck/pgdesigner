@@ -835,6 +835,16 @@ func checkExcludeRefs(v *validator, schema string, t *pgd.Table) {
 	cols := v.columns[tpath(schema, t.Name)]
 	for _, ex := range t.Excludes {
 		for _, el := range ex.Elements {
+			hasColumn := el.Column != ""
+			hasExpression := strings.TrimSpace(el.Expression) != ""
+			if hasColumn == hasExpression {
+				v.errorf(RuleExclElementInvalid, tpath(schema, t.Name),
+					"EXCLUDE %q element must specify exactly one of column or expression", ex.Name)
+				continue
+			}
+			if hasExpression {
+				continue
+			}
 			if _, ok := cols[el.Column]; !ok {
 				v.errorf(RuleExclColNotFound, tpath(schema, t.Name),
 					"EXCLUDE %q references unknown column %q", ex.Name, el.Column)

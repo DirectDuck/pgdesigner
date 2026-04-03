@@ -251,6 +251,47 @@ func TestValidate_E025_SequenceType(t *testing.T) {
 	assert.True(t, hasCode(Validate(p), RuleSeqTypeInvalid))
 }
 
+func TestValidate_E026_ExcludeColumnNotFound(t *testing.T) {
+	p := minProject()
+	p.Schemas[0].Tables[0].Excludes = []pgd.Exclude{{
+		Name:  "ex_bad",
+		Using: "gist",
+		Elements: []pgd.ExcludeElement{
+			{Column: "missing_column", With: "="},
+		},
+	}}
+	assert.True(t, hasCode(Validate(p), RuleExclColNotFound))
+}
+
+func TestValidate_E033_ExcludeElementInvalid(t *testing.T) {
+	p := minProject()
+	p.Schemas[0].Tables[0].Excludes = []pgd.Exclude{{
+		Name:  "ex_bad",
+		Using: "gist",
+		Elements: []pgd.ExcludeElement{
+			{With: "="},
+			{Column: "id", Expression: "lower(name)", With: "="},
+		},
+	}}
+	assert.True(t, hasCode(Validate(p), RuleExclElementInvalid))
+}
+
+func TestValidate_ExcludeExpressionAllowed(t *testing.T) {
+	p := minProject()
+	p.Schemas[0].Tables[0].Excludes = []pgd.Exclude{{
+		Name:  "ex_expr",
+		Using: "gist",
+		Elements: []pgd.ExcludeElement{
+			{Column: "id", With: "="},
+			{Expression: `tstzrange("id", "id")`, With: "&&"},
+		},
+	}}
+
+	issues := Validate(p)
+	assert.False(t, hasCode(issues, RuleExclElementInvalid))
+	assert.False(t, hasCode(issues, RuleExclColNotFound))
+}
+
 func TestValidate_E030_ViewNoQuery(t *testing.T) {
 	p := minProject()
 	p.Views = &pgd.Views{Views: []pgd.View{{Name: "v_empty"}}}

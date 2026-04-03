@@ -710,6 +710,10 @@
           <xs:attribute name="with"       type="xs:string" use="required"/>
         </xs:complexType>
       </xs:element>
+      <!-- WHERE predicate for partial EXCLUDE constraint (raw SQL, typically CDATA) -->
+      <xs:element name="where" minOccurs="0" maxOccurs="1">
+        <xs:complexType mixed="true"/>
+      </xs:element>
     </xs:sequence>
     <xs:attribute name="name"       type="xs:string"      use="optional"/>
     <!-- USING index method, e.g. "gist" -->

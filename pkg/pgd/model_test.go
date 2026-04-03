@@ -115,6 +115,29 @@ func TestUnmarshalAdventureWorks(t *testing.T) {
 	assert.NotEmpty(t, p.Comments)
 }
 
+func TestExcludeRoundTrip_WithExpressionAndWhere(t *testing.T) {
+	data := []byte(`<exclude name="tariffsUnique" using="gist">
+  <element column="transactionType" with="="></element>
+  <element expression="tstzrange(&quot;startsAt&quot;, CASE WHEN &quot;endsAt&quot; IS NULL THEN 'infinity' ELSE &quot;endsAt&quot; END)" with="&amp;&amp;"></element>
+  <where><![CDATA[COALESCE(ARRAY_LENGTH("shopIds", 1), 0) = 0]]></where>
+</exclude>`)
+
+	var ex Exclude
+	require.NoError(t, xml.Unmarshal(data, &ex))
+
+	require.Len(t, ex.Elements, 2)
+	assert.Equal(t, "transactionType", ex.Elements[0].Column)
+	assert.Empty(t, ex.Elements[0].Expression)
+	assert.Equal(t, "tstzrange(\"startsAt\", CASE WHEN \"endsAt\" IS NULL THEN 'infinity' ELSE \"endsAt\" END)", ex.Elements[1].Expression)
+	require.NotNil(t, ex.Where)
+	assert.Equal(t, `COALESCE(ARRAY_LENGTH("shopIds", 1), 0) = 0`, ex.Where.Value)
+
+	got, err := xml.MarshalIndent(&ex, "", "  ")
+	require.NoError(t, err)
+	assert.Contains(t, string(got), `expression="tstzrange(&#34;startsAt&#34;, CASE WHEN &#34;endsAt&#34; IS NULL THEN &#39;infinity&#39; ELSE &#34;endsAt&#34; END)"`)
+	assert.Contains(t, string(got), `<where><![CDATA[COALESCE(ARRAY_LENGTH("shopIds", 1), 0) = 0]]></where>`)
+}
+
 func findTable(tables []Table, name string) int {
 	for i, t := range tables {
 		if t.Name == name {

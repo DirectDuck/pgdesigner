@@ -237,6 +237,29 @@ func TestGenerateDDL_Index(t *testing.T) {
 	assert.Contains(t, ddl, `DESC NULLS LAST`)
 }
 
+func TestGenerateDDL_UniqueNullsNotDistinct(t *testing.T) {
+	p := &Project{
+		Schemas: []Schema{{
+			Name: "public",
+			Tables: []Table{{
+				Name: "t",
+				Columns: []Column{
+					{Name: "a", Type: "integer"},
+					{Name: "b", Type: "integer"},
+				},
+				Uniques: []Unique{{
+					Name:          "uq_t",
+					NullsDistinct: "false",
+					Columns:       []ColRef{{Name: "a"}, {Name: "b"}},
+				}},
+			}},
+		}},
+	}
+
+	ddl := GenerateDDL(p)
+	assert.Contains(t, ddl, `CONSTRAINT "uq_t" UNIQUE NULLS NOT DISTINCT("a", "b")`)
+}
+
 func TestGenerateDDL_CompositePK(t *testing.T) {
 	p := &Project{
 		Schemas: []Schema{{
@@ -716,6 +739,41 @@ func TestGenerateDDL_Exclude(t *testing.T) {
 	assert.Contains(t, ddl, "EXCLUDE USING gist")
 	assert.Contains(t, ddl, `"room_id" WITH =`)
 	assert.Contains(t, ddl, `"during" WITH &&`)
+}
+
+func TestGenerateDDL_ExcludeWithExpressionAndWhere(t *testing.T) {
+	p := &Project{
+		Schemas: []Schema{{
+			Name: "public",
+			Tables: []Table{{
+				Name: "tariffs",
+				Columns: []Column{
+					{Name: "transactionType", Type: "text"},
+					{Name: "startsAt", Type: "timestamptz"},
+					{Name: "endsAt", Type: "timestamptz"},
+					{Name: "shopIds", Type: "integer[]"},
+				},
+				Excludes: []Exclude{{
+					Name:  "tariffsUnique",
+					Using: "gist",
+					Elements: []ExcludeElement{
+						{Column: "transactionType", With: "="},
+						{
+							Expression: `tstzrange("startsAt", CASE WHEN "endsAt" IS NULL THEN 'infinity' ELSE "endsAt" END)`,
+							With:       "&&",
+						},
+					},
+					Where: &WhereClause{Value: `COALESCE(ARRAY_LENGTH("shopIds", 1), 0) = 0`},
+				}},
+			}},
+		}},
+	}
+
+	ddl := GenerateDDL(p)
+	assert.Contains(t, ddl, `CONSTRAINT "tariffsUnique" EXCLUDE USING gist`)
+	assert.Contains(t, ddl, `"transactionType" WITH =`)
+	assert.Contains(t, ddl, `tstzrange("startsAt", CASE WHEN "endsAt" IS NULL THEN 'infinity' ELSE "endsAt" END) WITH &&`)
+	assert.Contains(t, ddl, `WHERE (COALESCE(ARRAY_LENGTH("shopIds", 1), 0) = 0)`)
 }
 
 // --- Role / RLS / Policy / Grant ---

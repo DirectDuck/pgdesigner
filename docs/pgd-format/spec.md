@@ -541,6 +541,18 @@ The element text content is the CHECK expression (use CDATA for special characte
 </exclude>
 ```
 
+Expression elements and partial predicates are also supported:
+
+```xml
+<exclude name="tariffsUnique" using="gist">
+  <element column="transactionType" with="="></element>
+  <element
+    expression="tstzrange(&quot;startsAt&quot;, CASE WHEN &quot;endsAt&quot; IS NULL THEN 'infinity' ELSE &quot;endsAt&quot; END)"
+    with="&amp;&amp;"></element>
+  <where><![CDATA[COALESCE(ARRAY_LENGTH("shopIds", 1), 0) = 0]]></where>
+</exclude>
+```
+
 | Attribute | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `name` | string | — | Constraint name |
@@ -548,6 +560,12 @@ The element text content is the CHECK expression (use CDATA for special characte
 | `deferrable` | boolean | `false` | DEFERRABLE |
 | `initially` | enum | — | `immediate`, `deferred` |
 | `enforced` | boolean | `true` | NOT ENFORCED (PG18+) |
+
+**Child elements:**
+
+| Element | Type | Description |
+|---------|------|-------------|
+| `where` | raw SQL | Optional partial predicate emitted as `WHERE (...)` |
 
 **`<element>` attributes:**
 

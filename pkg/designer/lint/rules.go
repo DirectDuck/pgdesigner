@@ -35,6 +35,7 @@ const (
 	RuleViewNoQuery        = "E030"
 	RuleMultiIdentity      = "E031"
 	RulePartKeyNotInPK     = "E032" // PK/UNIQUE must include all partition key columns
+	RuleExclElementInvalid = "E033"
 
 	// W — Warnings (DDL valid, likely problem)
 	RuleFKTypeMismatch   = "W001"
@@ -144,6 +145,7 @@ var Rules = map[string]RuleDef{
 	RuleViewNoQuery:        rule(RuleViewNoQuery, Error, ScopeProject, "View No Query", "view has no query"),
 	RuleMultiIdentity:      rule(RuleMultiIdentity, Error, ScopeTable, "Multiple Identity Columns", "table has multiple identity columns (PG allows only one)"),
 	RulePartKeyNotInPK:     rule(RulePartKeyNotInPK, Error, ScopePK, "Partition Key Not In PK", "PK/UNIQUE must include all partition key columns"),
+	RuleExclElementInvalid: rule(RuleExclElementInvalid, Error, ScopeTable, "Invalid Exclude Element", "EXCLUDE element must specify exactly one of column or expression"),
 
 	// Warnings
 	RuleFKTypeMismatch:   rule(RuleFKTypeMismatch, Warning, ScopeFK, "FK Type Mismatch", "FK column type mismatch"),
