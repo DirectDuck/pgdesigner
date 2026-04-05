@@ -5,7 +5,7 @@
 [![Go](https://img.shields.io/badge/Go-1.24-00ADD8)](go.mod)
 [![macOS | Linux | Windows](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)]()
 
-Visual PostgreSQL schema designer with git-friendly `.pgd` XML format, diff/ALTER engine, and 66 lint rules.
+Visual PostgreSQL schema designer with git-friendly `.pgd` XML format, diff/ALTER engine, and 66 lint rules. Ships as a single binary — no cloud, no account, no telemetry.
 
 <p align="center">
   <a href="https://pgdesigner.io">
@@ -40,7 +40,7 @@ Most schema design tools are either database-agnostic (losing PG-specific featur
 | **Diff Engine** | Semantic ALTER between two schemas with hazard warnings |
 | **Lint & Autofix** | 66 rules: naming, types, FK, indexes, constraints |
 | **Sample Data** | Generate realistic INSERT statements from schema |
-| **Import** | MicroOLAP PDD, DbSchema DBS, Toad DM2, plain SQL, live PostgreSQL |
+| **Import** | pgModeler (.pdd), DbSchema (.dbs), Toad (.dm2), plain SQL, live PostgreSQL |
 | **Reverse Engineering** | Import from live PostgreSQL via `pg_catalog` |
 | **CLI** | `generate`, `lint`, `diff`, `convert`, `merge` for CI/CD pipelines |
 
